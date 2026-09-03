@@ -5,6 +5,10 @@ interface GlassPanelProps {
   children: ReactNode;
   className?: string;
   as?: ElementType;
+  /** Set false for non-interactive glass surfaces (nav, hero) so they
+   *  don't jog on hover — Phase 1 final review Minor finding #4. */
+  hoverLift?: boolean;
+  [key: string]: unknown;
 }
 
 /**
@@ -16,13 +20,18 @@ export function GlassPanel({
   children,
   className = "",
   as: Component = "div",
+  hoverLift = true,
+  ...rest
 }: GlassPanelProps) {
   return (
     <Component
-      className={`relative rounded-2xl border border-white/10 bg-white/[0.06] backdrop-blur-xl transition-all duration-300 ease-out hover:-translate-y-1 hover:border-white/20 ${className}`}
+      className={`relative rounded-2xl border border-white/10 bg-white/[0.06] backdrop-blur-xl transition-all duration-300 ease-out hover:border-white/20 ${
+        hoverLift ? "hover:-translate-y-1" : ""
+      } ${className}`}
       style={{
         boxShadow: "var(--glass-shadow)",
       }}
+      {...rest}
     >
       <span
         aria-hidden

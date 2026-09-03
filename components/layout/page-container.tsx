@@ -1,5 +1,6 @@
 // components/layout/page-container.tsx
 import { ReactNode } from "react";
+import { Container } from "@/components/layout/container";
 
 interface PageContainerProps {
   children: ReactNode;
@@ -7,7 +8,5 @@ interface PageContainerProps {
 }
 
 export function PageContainer({ children, className = "" }: PageContainerProps) {
-  return (
-    <div className={`mx-auto max-w-6xl px-4 py-16 ${className}`}>{children}</div>
-  );
+  return <Container className={`py-16 ${className}`}>{children}</Container>;
 }
