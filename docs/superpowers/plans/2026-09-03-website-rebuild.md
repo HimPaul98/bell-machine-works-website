@@ -17,6 +17,8 @@
 - Content is dev-edited, in-repo TS/MDX data files — no headless CMS (spec §1).
 - Accepted RFQ upload file types: STEP, IGES, Parasolid, STL, PDF, DWG, DXF (spec §4).
 - Every commit message ends with the standard Co-Authored-By / Claude-Session footer already used for the spec commit in this repo.
+- Stock/placeholder photography in `public/images/stock/` (manifest at `public/images/stock/MANIFEST.md`) is atmospheric and generic only — used for hero backgrounds, section texture, and unlabeled accents. It is never captioned or presented as depicting a specific named client's actual part; only real client-supplied photography may be attributed to a named client. Swap stock for real shop photography page-by-page as Bushra supplies it, not all at once.
+- Every new page (static or dynamic route) ships with page-specific `metadata` — a static `export const metadata: Metadata` for fixed routes, `generateMetadata` for dynamic `[slug]` routes. No route inherits the root layout's home-page title/description silently (Phase 2 final-review finding, now a standing rule).
 
 ---
 
@@ -1781,13 +1783,878 @@ shows one commit per task. Next phase starts fresh after a `/compact`.
 
 ---
 
-## Phase 3 — Industries (6 pages) + Case Studies (plan in detail at phase start)
+## Phase 3 — Industries + Case Studies + first photography pass
 
-One page per industry vertical (Semiconductor Equipment, Robotics & Automation, Photonics & Optical Systems, Aerospace Components, Medical Device R&D, Specialty Applications) sourcing copy from Rebuild-Build-Plan.md §2.4, plus individual case-study pages sourced directly from Case-Studies-Draft.md's Tier-A content. Case-study cards use glass; the tolerance/material facts within them stay on solid backgrounds.
+Six industry vertical pages, a Work/Case Studies hub with one flagship named case study per vertical, and the phase's own photography integration task (sourcing generic, honestly-used stock photography into `public/images/stock/` and wiring it into the home hero, Capabilities, and the new hub pages). `/capabilities/5-axis-milling` and the four `/capabilities/materials/*` detail-page routes that Task 7 of Phase 2 already links to remain explicitly unassigned — out of scope here, to be picked up when Phase 4 is planned, not folded into this phase.
+
+Scope decision on case studies: Case-Studies-Draft.md drafts 15 Tier-A client stories across the six verticals, but its own "Notes for Bushra's Review" section names four as strongest to lead with (ASML, Stoke Space, Corning, UCSF) — already shipped as home-page teasers in Phase 2. This phase gives every one of the six industries exactly one flagship named case study: the four already-teased ones, plus Amazon Robotics for Robotics & Automation and nVent Data Solutions for Specialty Applications (the strongest remaining candidates per the same source doc). The other 9 drafted case studies stay unshipped, available for a later phase once Bushra's naming review is complete — this is a scope ruling, not a data loss; nothing here forecloses adding them later.
+
+**Files:**
+- Modify: `lib/content/case-studies.ts`
+- Create: `lib/content/industries.ts`, `components/industries/industry-card.tsx`, `app/industries/page.tsx`, `app/industries/[slug]/page.tsx`, `components/work/case-study-card.tsx`, `app/work/page.tsx`, `app/work/[slug]/page.tsx`
+- Modify: `components/home/hero-section.tsx`, `app/capabilities/page.tsx`
+
+### Task 1: Extend case-studies data with full detail content
+
+**Files:**
+- Modify: `lib/content/case-studies.ts`
+
+**Interfaces:**
+- Consumes: existing `CaseStudySummary` interface and `caseStudies` array (Phase 2 Task 6) — this task extends both, it does not replace them
+- Produces: extended `CaseStudySummary` interface (adds `industrySlug`, `narrative`, `specHighlights`) — Tasks 2, 3, 5 consume `industrySlug` to link industries ↔ case studies; Task 5 consumes `narrative` and `specHighlights` to render the case-study detail page
+
+- [ ] **Step 1: Replace the file's contents**
+
+```ts
+// lib/content/case-studies.ts
+export interface CaseStudySummary {
+  slug: string;
+  client: string;
+  sector: string;
+  industrySlug: string;
+  material: string;
+  summary: string;
+  narrative: string;
+  specHighlights: { label: string; value: string }[];
+  tier: "A" | "B" | "C";
+}
+
+export const caseStudies: CaseStudySummary[] = [
+  {
+    slug: "asml",
+    client: "ASML",
+    sector: "Semiconductor Equipment",
+    industrySlug: "semiconductor-equipment",
+    material: "Aluminum 6061-T6",
+    summary:
+      "Alignment brackets and vacuum-sealing components for lithography systems, holding tight tolerances across six sealing locations.",
+    narrative:
+      "BELL has machined critical alignment brackets and vacuum/gas sealing components for ASML's lithography systems — the machines that print the circuitry on nearly every advanced chip made today. Two separate engagements: a 3F alignment bracket holding precise tube alignment through the optical path, paired with a \"popless\" fusing lid designed to prevent particle contamination in clean-room environments; and an O-ring sealed bracket and plate set with six tight-tolerance sealing locations (down to 0.079\" plate thickness) maintaining vacuum integrity for wafer processing. This is exactly the kind of work where a tolerance miss doesn't mean a bad part — it means particle contamination in an EUV chamber.",
+    specHighlights: [
+      { label: "Sealing locations", value: "6 tight-tolerance locations" },
+      { label: "Plate thickness", value: 'Down to 0.079"' },
+      { label: "Material", value: "Aluminum 6061-T6" },
+    ],
+    tier: "A",
+  },
+  {
+    slug: "stoke-space",
+    client: "Stoke Space",
+    sector: "Aerospace",
+    industrySlug: "aerospace-components",
+    material: "Delrin & PTFE",
+    summary:
+      "Tube raceway brackets and cryo-compatible clamp families for a reusable launch vehicle's propulsion system.",
+    narrative:
+      "BELL machined two related bracket families for Stoke Space's Nova program — a fully reusable medium-lift launch vehicle under development at Stoke's Kent, WA facility. The first: white Delrin top/bottom raceway brackets organizing parallel tube and fluid lines with contoured saddles and structural ribs to prevent deflection under vibration. The second: a six-part black PTFE clamp family (standard, \"special,\" and cryo-inert \"Y-Inert\" variants, 90 pieces total) selected specifically for cryogenic compatibility and chemical inertness — consistent with propellant and inerting line management on actual flight hardware. Both shipped on expedited next-day timelines supporting active propulsion system integration.",
+    specHighlights: [
+      { label: "Clamp family", value: "6-part family, 90 pieces total" },
+      { label: "Turnaround", value: "Expedited next-day" },
+      { label: "Material", value: "Delrin 150 & cryo-compatible PTFE" },
+    ],
+    tier: "A",
+  },
+  {
+    slug: "corning",
+    client: "Corning Incorporated",
+    sector: "Photonics & Optical Systems",
+    industrySlug: "photonics-optical-systems",
+    material: "Aluminum 6061-T6",
+    summary:
+      "Optical transition adapter and backing block finished to 32 μin Ra for optical-grade contact surfaces.",
+    narrative:
+      "An optical transition adapter with 10 tight-tolerance alignment locations, paired with a backing block finished to 32 μin Ra on five surfaces for optical-grade contact — machined for Corning's glass and fiber-optic processing equipment. This is a near-exact match to the \"10+ alignment locations\" and \"32 μin Ra optical-grade finish\" language on BELL's own homepage — this is the real job behind that claim.",
+    specHighlights: [
+      { label: "Alignment locations", value: "10 tight-tolerance locations" },
+      { label: "Surface finish", value: "32 μin Ra on 5 surfaces" },
+      { label: "Material", value: "Aluminum 6061-T6" },
+    ],
+    tier: "A",
+  },
+  {
+    slug: "ucsf",
+    client: "UCSF Biomedical Engineering",
+    sector: "Medical Device R&D",
+    industrySlug: "medical-device-rd",
+    material: "Polycarbonate",
+    summary:
+      "Microfluidic manifold halves for organ-on-chip research, holding a 0.4mm micro-channel width.",
+    narrative:
+      "Two complementary polycarbonate manifold halves for an organ-on-chip microfluidics research device at UCSF's Byers Hall, Mission Bay campus — with a 0.4mm micro-channel width requirement demanding genuine micro-machining precision. Clear polycarbonate was chosen for optical transparency (real-time visualization of live cell cultures under the microscope) and biocompatibility; the bead-blast finish specifically reduces optical distortion without sacrificing microscopy access.",
+    specHighlights: [
+      { label: "Micro-channel width", value: "0.4mm" },
+      { label: "Finish", value: "Bead-blast, optically clear" },
+      { label: "Material", value: "Polycarbonate" },
+    ],
+    tier: "A",
+  },
+  {
+    slug: "amazon-robotics",
+    client: "Amazon Robotics",
+    sector: "Robotics & Automation",
+    industrySlug: "robotics-automation",
+    material: "Polycarbonate, white",
+    summary:
+      "Precision sensor-mounting fixtures with 3mm/4mm hole patterns for vision-system testing at a robotics innovation hub.",
+    narrative:
+      "A four-piece polycarbonate fixture set with precision 3mm/4mm hole patterns for sensor mounting and calibration, built for Amazon Robotics' 350,000 sq ft Westborough, MA innovation hub — where the company designs and tests the mobile drive units and warehouse robots used across its fulfillment network. Polycarbonate's optical clarity was specifically needed for vision-system testing during development.",
+    specHighlights: [
+      { label: "Hole patterns", value: "3mm / 4mm precision" },
+      { label: "Fixture set", value: "4-piece" },
+      { label: "Material", value: "Polycarbonate" },
+    ],
+    tier: "A",
+  },
+  {
+    slug: "nvent",
+    client: "nVent Data Solutions",
+    sector: "Specialty Applications",
+    industrySlug: "specialty-applications",
+    material: "Delrin 150, black",
+    summary:
+      "Precision liquid-cooling clamps supplying AI data-center infrastructure on an expedited production ramp.",
+    narrative:
+      "Precision saddle-style Delrin clamps (9 sets) securing coolant distribution piping at nVent's new 117,000 sq ft Blaine, MN facility — built to supply liquid cooling systems for NVIDIA GB200-class AI server infrastructure. A genuinely notable, currently-relevant client given the AI infrastructure buildout, and a good example of BELL's ability to support a fast production ramp-up: 5-day expedited delivery on this job.",
+    specHighlights: [
+      { label: "Clamp sets", value: "9 sets, saddle-style" },
+      { label: "Turnaround", value: "5-day expedited" },
+      { label: "Material", value: "Delrin 150" },
+    ],
+    tier: "A",
+  },
+];
+```
+
+Every figure is copied verbatim from Case-Studies-Draft.md — nothing invented. `industrySlug` values are chosen now so Task 2's `lib/content/industries.ts` can reference them back; keep them exactly as spelled here (`semiconductor-equipment`, `aerospace-components`, `photonics-optical-systems`, `medical-device-rd`, `robotics-automation`, `specialty-applications`).
+
+- [ ] **Step 2: Verify the build**
+
+```bash
+./node_modules/.bin/next build
+```
+
+Expected: exits 0 (this file has no consumers yet beyond Phase 2's `ClientTeaserSection`, which only reads `slug`/`client`/`sector`/`summary` — unaffected by the added fields).
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add lib/content/case-studies.ts
+git commit -m "$(cat <<'EOF'
+Extend case-studies data with narrative detail and industry links
+
+Adds industrySlug, narrative, and specHighlights fields to the four
+existing Tier-A case studies (ASML, Stoke Space, Corning, UCSF), and
+adds two more flagship case studies (Amazon Robotics, nVent Data
+Solutions) so every one of BELL's six industry verticals has exactly
+one named case study to link to. All content sourced verbatim from
+Case-Studies-Draft.md; the remaining 9 drafted case studies stay
+unshipped pending Bushra's naming review.
+
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01HVcNcjykngEZuiQGvzQ6Wf
+EOF
+)"
+```
+
+---
+
+### Task 2: Industries content data + hub page
+
+**Files:**
+- Create: `lib/content/industries.ts`, `components/industries/industry-card.tsx`, `app/industries/page.tsx`
+
+**Interfaces:**
+- Consumes: `GlassPanel` (`components/ui/glass-panel.tsx`), `PageContainer` (`components/layout/page-container.tsx`), `caseStudies` (Task 1, for the case-study summary shown on each card — read-only, not modified)
+- Produces: `Industry` interface and `industries: Industry[]` export from `lib/content/industries.ts` — Task 3's detail route consumes this by `slug`; `<IndustryCard industry={...} />` — Task 3 does not reuse this component (its own page needs a different, larger layout), it exists for the hub grid only
+
+- [ ] **Step 1: Create the industries content data file**
+
+```ts
+// lib/content/industries.ts
+export interface Industry {
+  slug: string;
+  name: string;
+  tagline: string;
+  body: string;
+  materials: string[];
+  caseStudySlug: string;
+}
+
+export const industries: Industry[] = [
+  {
+    slug: "semiconductor-equipment",
+    name: "Semiconductor Equipment",
+    tagline:
+      "Sub-micron alignment brackets and vacuum-sealing components for semiconductor lithography systems.",
+    body: "BELL machines alignment brackets, vacuum/gas sealing components, thermal management assemblies, and multi-point mounting fixtures for semiconductor equipment builders — holding tolerances to ±0.0002\" on critical features, with surface finishes to 32 μin Ra where optical-grade contact surfaces are required. Every part ships with CMM inspection data and full material certification.",
+    materials: ["Aluminum 6061-T6", "Copper C110", "Stainless Steel 303"],
+    caseStudySlug: "asml",
+  },
+  {
+    slug: "aerospace-components",
+    name: "Aerospace Components",
+    tagline: "Flight-hardware-grade CNC machining, from prototype to production run.",
+    body: "BELL machines collar and clamping assemblies, multi-piece cabin furniture sets, DO-160 environmental test fixtures, and non-marring components in titanium Grade 5 and Inconel 625/718, plus cryo-compatible tooling for reusable launch vehicle propulsion systems. Standard lead time is 2 weeks; rush turnaround is available in 24 hours.",
+    materials: ["Titanium Grade 5", "Inconel 625", "Inconel 718", "Aluminum 2024"],
+    caseStudySlug: "stoke-space",
+  },
+  {
+    slug: "robotics-automation",
+    name: "Robotics & Automation",
+    tagline:
+      "Precision fixtures and wear components for warehouse robotics and automated production lines.",
+    body: "BELL machines sensor-mounting and calibration fixtures for robotics R&D, plus wear-resistant components for automated material-handling systems — built to hold precise hole patterns for vision-system testing and to survive continuous-duty industrial automation environments.",
+    materials: ["Polycarbonate", "UHMW PE"],
+    caseStudySlug: "amazon-robotics",
+  },
+  {
+    slug: "photonics-optical-systems",
+    name: "Photonics & Optical Systems",
+    tagline: "Optical-grade alignment components finished to 32 μin Ra.",
+    body: "BELL machines optical transition adapters, backing blocks, and precision alignment fixtures for glass, fiber-optic, and laser-crystal processing equipment — finished to 32 μin Ra on optical-grade contact surfaces, with tolerances that hold true across ten or more alignment locations on a single part.",
+    materials: ["Aluminum 6061-T6", "PTFE"],
+    caseStudySlug: "corning",
+  },
+  {
+    slug: "medical-device-rd",
+    name: "Medical Device R&D",
+    tagline: "Sub-millimeter precision for medical device and biomedical research tooling.",
+    body: "BELL machines trim jigs, disassembly fixtures, and microfluidic manifolds for medical device and biopharmaceutical R&D — including sub-millimeter micro-channel features for organ-on-chip research and material-certified tooling for regulated pharmaceutical teardown analysis.",
+    materials: ["Polycarbonate", "Stainless Steel 303"],
+    caseStudySlug: "ucsf",
+  },
+  {
+    slug: "specialty-applications",
+    name: "Specialty Applications",
+    tagline:
+      "Precision components for AI data-center infrastructure, packaging automation, and beyond.",
+    body: "BELL machines precision clamps, wear blocks, and custom fixtures for applications outside its five core verticals — including liquid-cooling clamps for AI data-center infrastructure and wear-resistant components for automated packaging equipment, often on expedited production-ramp timelines.",
+    materials: ["Delrin", "UHMW PE"],
+    caseStudySlug: "nvent",
+  },
+];
+```
+
+Semiconductor Equipment and Aerospace Components copy is Rebuild-Build-Plan.md §2.4's own drafted industry-page blocks, unchanged. The other four are written in the same answer-first voice, sourced from each industry's Case-Studies-Draft.md section — no invented specs.
+
+- [ ] **Step 2: Create the IndustryCard component**
+
+```tsx
+// components/industries/industry-card.tsx
+import Link from "next/link";
+import { GlassPanel } from "@/components/ui/glass-panel";
+import type { Industry } from "@/lib/content/industries";
+
+export function IndustryCard({ industry }: { industry: Industry }) {
+  return (
+    <Link
+      href={`/industries/${industry.slug}`}
+      className="block rounded-2xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-400 focus-visible:outline-offset-2"
+    >
+      <GlassPanel className="h-full p-6">
+        <h3 className="text-lg font-semibold text-steel-100">{industry.name}</h3>
+        <p className="mt-2 text-sm text-steel-200">{industry.tagline}</p>
+      </GlassPanel>
+    </Link>
+  );
+}
+```
+
+`hoverLift` is left at its default `true` — Design-Direction.md §2 lists industry cards as an explicit glass-plus-hover use case, matching `ClientTeaserSection`'s cards.
+
+- [ ] **Step 3: Create the Industries hub page**
+
+```tsx
+// app/industries/page.tsx
+import type { Metadata } from "next";
+import { PageContainer } from "@/components/layout/page-container";
+import { IndustryCard } from "@/components/industries/industry-card";
+import { industries } from "@/lib/content/industries";
+
+export const metadata: Metadata = {
+  title: "Industries — Precision CNC Machining by Vertical | BELL Machine Works",
+  description:
+    "Semiconductor equipment, aerospace, robotics, photonics, medical device, and specialty-applications machining — real tolerances, real materials, real clients. Gilroy, CA.",
+};
+
+export default function IndustriesPage() {
+  return (
+    <PageContainer className="flex flex-col gap-12">
+      <div>
+        <h1 className="text-3xl font-semibold text-steel-100 md:text-4xl">Industries</h1>
+        <p className="mt-4 max-w-2xl text-steel-200">
+          Six verticals where BELL has real, shipped work — not a generic capability
+          claim for each.
+        </p>
+      </div>
+      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        {industries.map((industry) => (
+          <IndustryCard key={industry.slug} industry={industry} />
+        ))}
+      </div>
+    </PageContainer>
+  );
+}
+```
+
+- [ ] **Step 4: Verify the build**
+
+```bash
+./node_modules/.bin/next build
+```
+
+Expected: exits 0, route summary includes `/industries`.
+
+- [ ] **Step 5: Verify the rendered output**
+
+```bash
+./node_modules/.bin/next start -p 3104 &
+sleep 2
+curl -s http://localhost:3104/industries | grep -o 'Semiconductor Equipment'
+curl -s http://localhost:3104/industries | grep -o 'Specialty Applications'
+kill %1
+```
+
+Expected: both greps find a match.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add lib/content/industries.ts components/industries/industry-card.tsx app/industries/page.tsx
+git commit -m "$(cat <<'EOF'
+Add Industries hub page
+
+Six industry-vertical cards (Semiconductor Equipment, Aerospace,
+Robotics & Automation, Photonics & Optical Systems, Medical Device
+R&D, Specialty Applications), sourced from Rebuild-Build-Plan.md §2.4
+and Case-Studies-Draft.md. Cards are glass per the industry-card
+carve-out in the Global Constraints.
+
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01HVcNcjykngEZuiQGvzQ6Wf
+EOF
+)"
+```
+
+---
+
+### Task 3: Industry detail page (dynamic route)
+
+**Files:**
+- Create: `app/industries/[slug]/page.tsx`
+
+**Interfaces:**
+- Consumes: `industries` (Task 2), `caseStudies` (Task 1), `PageContainer`, `GlassPanel`
+- Produces: nothing later tasks in this plan depend on
+
+- [ ] **Step 1: Create the dynamic industry detail page**
+
+```tsx
+// app/industries/[slug]/page.tsx
+import type { Metadata } from "next";
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { PageContainer } from "@/components/layout/page-container";
+import { GlassPanel } from "@/components/ui/glass-panel";
+import { industries } from "@/lib/content/industries";
+import { caseStudies } from "@/lib/content/case-studies";
+
+export function generateStaticParams() {
+  return industries.map((industry) => ({ slug: industry.slug }));
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const industry = industries.find((i) => i.slug === slug);
+  if (!industry) return {};
+  return {
+    title: `${industry.name} CNC Machining | BELL Machine Works`,
+    description: industry.tagline,
+  };
+}
+
+export default async function IndustryDetailPage({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}) {
+  const { slug } = await params;
+  const industry = industries.find((i) => i.slug === slug);
+  if (!industry) notFound();
+
+  const caseStudy = caseStudies.find((cs) => cs.slug === industry.caseStudySlug);
+
+  return (
+    <PageContainer className="flex flex-col gap-12">
+      <div>
+        <p className="text-sm text-accent-400">Industries</p>
+        <h1 className="mt-1 text-3xl font-semibold text-steel-100 md:text-4xl">
+          {industry.name}
+        </h1>
+        <p className="mt-4 max-w-2xl text-lg text-steel-200">{industry.tagline}</p>
+      </div>
+
+      <section className="rounded-2xl border border-white/10 bg-graphite-900 p-8 md:p-12">
+        <p className="max-w-3xl text-steel-200">{industry.body}</p>
+        <div className="mt-6">
+          <h2 className="text-sm font-medium text-steel-200">Materials</h2>
+          <ul className="mt-2 flex flex-wrap gap-2">
+            {industry.materials.map((material) => (
+              <li
+                key={material}
+                className="rounded-full border border-white/10 px-3 py-1 text-sm text-steel-100"
+              >
+                {material}
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
+
+      {caseStudy && (
+        <section>
+          <h2 className="text-xl font-semibold text-steel-100 md:text-2xl">Featured work</h2>
+          <Link href={`/work/${caseStudy.slug}`} className="mt-6 block">
+            <GlassPanel className="p-6">
+              <p className="text-sm text-accent-400">{caseStudy.sector}</p>
+              <h3 className="mt-1 text-lg font-semibold text-steel-100">{caseStudy.client}</h3>
+              <p className="mt-2 text-sm text-steel-200">{caseStudy.summary}</p>
+            </GlassPanel>
+          </Link>
+        </section>
+      )}
+
+      <GlassPanel className="flex flex-col items-start gap-4 p-8 md:flex-row md:items-center md:justify-between md:p-12">
+        <div>
+          <h2 className="text-xl font-semibold text-steel-100">Have a print or model ready?</h2>
+          <p className="mt-2 text-steel-200">Most quotes go out within hours.</p>
+        </div>
+        <Link
+          href="/quote"
+          className="inline-block rounded-full bg-accent-500 px-6 py-3 text-sm font-medium text-white transition-all hover:brightness-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-400 focus-visible:outline-offset-2"
+        >
+          Get a Quote
+        </Link>
+      </GlassPanel>
+    </PageContainer>
+  );
+}
+```
+
+The materials list and the case-study data facts stay on the solid `bg-graphite-900` section per the glass-exclusion rule; only the featured-work teaser card and the closing CTA use `GlassPanel`, matching Capabilities' own pattern.
+
+- [ ] **Step 2: Verify the build**
+
+```bash
+./node_modules/.bin/next build
+```
+
+Expected: exits 0, route summary includes `/industries/[slug]` as a static (SSG) route with 6 generated paths.
+
+- [ ] **Step 3: Verify the rendered output**
+
+```bash
+./node_modules/.bin/next start -p 3104 &
+sleep 2
+curl -s http://localhost:3104/industries/semiconductor-equipment | grep -o 'ASML'
+curl -s http://localhost:3104/industries/specialty-applications | grep -o 'nVent Data Solutions'
+curl -s -o /dev/null -w '%{http_code}' http://localhost:3104/industries/not-a-real-slug
+kill %1
+```
+
+Expected: both greps find a match; the last curl prints `404`.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add app/industries/\[slug\]/page.tsx
+git commit -m "$(cat <<'EOF'
+Add industry detail pages
+
+Dynamic /industries/[slug] route, statically generated for all 6
+verticals. Each page shows the industry's copy and materials on a
+solid background, then its featured case study as a glass teaser
+card linking to the full /work/[slug] page.
+
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01HVcNcjykngEZuiQGvzQ6Wf
+EOF
+)"
+```
+
+---
+
+### Task 4: Work (case studies) hub page
+
+**Files:**
+- Create: `components/work/case-study-card.tsx`, `app/work/page.tsx`
+
+**Interfaces:**
+- Consumes: `caseStudies` (Task 1), `GlassPanel`, `PageContainer`
+- Produces: `<CaseStudyCard caseStudy={...} />` — reused nowhere else in this plan, but kept as its own component (not inlined) since Task 1's data now has 6 entries and this pattern may grow
+
+- [ ] **Step 1: Create the CaseStudyCard component**
+
+```tsx
+// components/work/case-study-card.tsx
+import Link from "next/link";
+import { GlassPanel } from "@/components/ui/glass-panel";
+import type { CaseStudySummary } from "@/lib/content/case-studies";
+
+export function CaseStudyCard({ caseStudy }: { caseStudy: CaseStudySummary }) {
+  return (
+    <Link
+      href={`/work/${caseStudy.slug}`}
+      className="block rounded-2xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-400 focus-visible:outline-offset-2"
+    >
+      <GlassPanel className="h-full p-6">
+        <p className="text-sm text-accent-400">{caseStudy.sector}</p>
+        <h3 className="mt-1 text-lg font-semibold text-steel-100">{caseStudy.client}</h3>
+        <p className="mt-2 text-sm text-steel-200">{caseStudy.summary}</p>
+      </GlassPanel>
+    </Link>
+  );
+}
+```
+
+- [ ] **Step 2: Create the Work hub page**
+
+```tsx
+// app/work/page.tsx
+import type { Metadata } from "next";
+import { PageContainer } from "@/components/layout/page-container";
+import { CaseStudyCard } from "@/components/work/case-study-card";
+import { caseStudies } from "@/lib/content/case-studies";
+
+export const metadata: Metadata = {
+  title: "Work — Case Studies | BELL Machine Works",
+  description:
+    "Real parts, real clients: ASML, Stoke Space, Corning, UCSF, Amazon Robotics, and nVent Data Solutions. Precision CNC machining case studies from BELL Machine Works, Gilroy, CA.",
+};
+
+export default function WorkPage() {
+  return (
+    <PageContainer className="flex flex-col gap-12">
+      <div>
+        <h1 className="text-3xl font-semibold text-steel-100 md:text-4xl">Work</h1>
+        <p className="mt-4 max-w-2xl text-steel-200">
+          Named clients, real specs, real materials — one flagship case study per
+          industry BELL serves.
+        </p>
+      </div>
+      <div className="grid gap-6 md:grid-cols-2">
+        {caseStudies.map((caseStudy) => (
+          <CaseStudyCard key={caseStudy.slug} caseStudy={caseStudy} />
+        ))}
+      </div>
+    </PageContainer>
+  );
+}
+```
+
+- [ ] **Step 3: Verify the build**
+
+```bash
+./node_modules/.bin/next build
+```
+
+Expected: exits 0, route summary includes `/work`.
+
+- [ ] **Step 4: Verify the rendered output**
+
+```bash
+./node_modules/.bin/next start -p 3104 &
+sleep 2
+curl -s http://localhost:3104/work | grep -o 'Amazon Robotics'
+curl -s http://localhost:3104/work | grep -o 'nVent Data Solutions'
+kill %1
+```
+
+Expected: both greps find a match.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add components/work/case-study-card.tsx app/work/page.tsx
+git commit -m "$(cat <<'EOF'
+Add Work (case studies) hub page
+
+Grid of all 6 flagship case studies as glass cards linking to their
+own /work/[slug] detail pages.
+
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01HVcNcjykngEZuiQGvzQ6Wf
+EOF
+)"
+```
+
+---
+
+### Task 5: Case study detail page (dynamic route)
+
+**Files:**
+- Create: `app/work/[slug]/page.tsx`
+
+**Interfaces:**
+- Consumes: `caseStudies` (Task 1, including `industrySlug`/`narrative`/`specHighlights`), `industries` (Task 2, to link back to the parent industry), `PageContainer`, `GlassPanel`
+- Produces: nothing later tasks in this plan depend on
+
+- [ ] **Step 1: Create the dynamic case-study detail page**
+
+```tsx
+// app/work/[slug]/page.tsx
+import type { Metadata } from "next";
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { PageContainer } from "@/components/layout/page-container";
+import { GlassPanel } from "@/components/ui/glass-panel";
+import { caseStudies } from "@/lib/content/case-studies";
+import { industries } from "@/lib/content/industries";
+
+export function generateStaticParams() {
+  return caseStudies.map((caseStudy) => ({ slug: caseStudy.slug }));
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const caseStudy = caseStudies.find((cs) => cs.slug === slug);
+  if (!caseStudy) return {};
+  return {
+    title: `${caseStudy.client} — Case Study | BELL Machine Works`,
+    description: caseStudy.summary,
+  };
+}
+
+export default async function CaseStudyDetailPage({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}) {
+  const { slug } = await params;
+  const caseStudy = caseStudies.find((cs) => cs.slug === slug);
+  if (!caseStudy) notFound();
+
+  const industry = industries.find((i) => i.slug === caseStudy.industrySlug);
+
+  return (
+    <PageContainer className="flex flex-col gap-12">
+      <div>
+        <p className="text-sm text-accent-400">{caseStudy.sector}</p>
+        <h1 className="mt-1 text-3xl font-semibold text-steel-100 md:text-4xl">
+          {caseStudy.client}
+        </h1>
+        <p className="mt-4 max-w-2xl text-lg text-steel-200">{caseStudy.summary}</p>
+      </div>
+
+      <section className="rounded-2xl border border-white/10 bg-graphite-900 p-8 md:p-12">
+        <p className="max-w-3xl text-steel-200">{caseStudy.narrative}</p>
+        <dl className="mt-8 grid gap-6 sm:grid-cols-3">
+          {caseStudy.specHighlights.map((item) => (
+            <div key={item.label}>
+              <dt className="text-sm text-steel-200">{item.label}</dt>
+              <dd className="mt-1 text-lg text-steel-100">{item.value}</dd>
+            </div>
+          ))}
+        </dl>
+      </section>
+
+      {industry && (
+        <p className="text-sm text-steel-200">
+          Part of BELL&apos;s{" "}
+          <Link
+            href={`/industries/${industry.slug}`}
+            className="text-steel-100 underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-400 focus-visible:outline-offset-2"
+          >
+            {industry.name}
+          </Link>{" "}
+          work.
+        </p>
+      )}
+
+      <GlassPanel className="flex flex-col items-start gap-4 p-8 md:flex-row md:items-center md:justify-between md:p-12">
+        <div>
+          <h2 className="text-xl font-semibold text-steel-100">Have a print or model ready?</h2>
+          <p className="mt-2 text-steel-200">Most quotes go out within hours.</p>
+        </div>
+        <Link
+          href="/quote"
+          className="inline-block rounded-full bg-accent-500 px-6 py-3 text-sm font-medium text-white transition-all hover:brightness-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-400 focus-visible:outline-offset-2"
+        >
+          Get a Quote
+        </Link>
+      </GlassPanel>
+    </PageContainer>
+  );
+}
+```
+
+Note `text-steel-200` (not `text-steel-400`) on the `<dt>` labels here — Phase 2's final review found `text-steel-400` fails WCAG AA at 3.84:1 on `bg-graphite-900`; this task uses the already-corrected token from the start rather than repeating that regression.
+
+- [ ] **Step 2: Verify the build**
+
+```bash
+./node_modules/.bin/next build
+```
+
+Expected: exits 0, route summary includes `/work/[slug]` as a static (SSG) route with 6 generated paths.
+
+- [ ] **Step 3: Verify the rendered output**
+
+```bash
+./node_modules/.bin/next start -p 3104 &
+sleep 2
+curl -s http://localhost:3104/work/asml | grep -o 'EUV chamber'
+curl -s http://localhost:3104/work/nvent | grep -o 'GB200'
+curl -s http://localhost:3104/work/asml | grep -o 'Semiconductor Equipment'
+curl -s -o /dev/null -w '%{http_code}' http://localhost:3104/work/not-a-real-slug
+kill %1
+```
+
+Expected: first three greps each find a match; the last curl prints `404`.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add app/work/\[slug\]/page.tsx
+git commit -m "$(cat <<'EOF'
+Add case study detail pages
+
+Dynamic /work/[slug] route, statically generated for all 6 flagship
+case studies. Narrative and spec highlights on a solid background;
+glass used only for the closing CTA, per the glass-exclusion rule.
+Links back to the parent industry page.
+
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01HVcNcjykngEZuiQGvzQ6Wf
+EOF
+)"
+```
+
+---
+
+### Task 6: Photography integration
+
+**Files:**
+- Modify: `components/home/hero-section.tsx`, `app/capabilities/page.tsx`, `app/industries/page.tsx`, `app/work/page.tsx`
+
+**Interfaces:**
+- Consumes: `public/images/stock/MANIFEST.md` (sourced separately into this repo before this task starts — a curated list of free-commercial-use CNC/precision-machining stock photos, one line per file, each tagged with a suggested use: hero background / industry card / case-study card / detail accent) and the image files it lists in `public/images/stock/`
+
+This is the task that directly answers "the site looks bland, get some images in it." Every other Phase 3 task ships pages with zero photography — this one adds it, everywhere it's cheap and honest to add it.
+
+- [ ] **Step 1: Read the manifest**
+
+```bash
+cat public/images/stock/MANIFEST.md
+```
+
+Pick: one image tagged **hero background** (wide/landscape, dark/moody preferred) for Step 2; one image tagged **detail accent** or **industry card** for each of Steps 3-4 (a different image for Capabilities than for Industries/Work, so the three pages don't look identical). If the manifest has fewer images than sections listed below, reuse an image rather than skip a section — visual repetition is fine, an unstyled/photo-less section is the thing being fixed.
+
+- [ ] **Step 2: Add a background photo to the home hero**
+
+Read `components/home/hero-section.tsx` first to see its current structure (a `GlassPanel` with headline/subhead/CTA, from Phase 2 Task 4). Wrap it in a relatively-positioned container with the chosen hero-background image absolutely positioned behind it, `next/image` with `fill`, a dark scrim for text-contrast safety, and the existing glass hero panel on top unchanged. Use this shape (adjust the `src` to the actual filename you picked from the manifest, and keep every existing prop/className on `GlassPanel` and its children exactly as Task 4 left them — only the wrapping structure changes):
+
+```tsx
+import Image from "next/image";
+
+// ...inside the component, wrapping the existing <GlassPanel> hero content:
+<div className="relative overflow-hidden rounded-2xl">
+  <Image
+    src="/images/stock/<chosen-filename>.jpg"
+    alt="CNC machining in progress"
+    fill
+    priority
+    sizes="100vw"
+    className="object-cover"
+  />
+  <div className="absolute inset-0 bg-graphite-900/70" aria-hidden />
+  {/* existing GlassPanel hero content goes here, unchanged */}
+</div>
+```
+
+The `alt` text stays generic ("CNC machining in progress") — never name a specific client or part, since this is stock photography, not a photo of actual BELL work (Global Constraints). The `bg-graphite-900/70` scrim keeps the existing hero text's contrast ratio safe against a photo of unknown brightness — verify in Step 6 rather than assuming.
+
+- [ ] **Step 3: Add a photo accent to the Capabilities page**
+
+Add one `next/image` between the Processes and Materials sections in `app/capabilities/page.tsx` (both currently `<section className="rounded-2xl border border-white/10 bg-graphite-900 p-8 md:p-12">` per Phase 2 Task 7) — a full-width banner image, not inside either solid data section (so it doesn't read as if it's part of the spec table):
+
+```tsx
+<div className="relative h-64 overflow-hidden rounded-2xl md:h-80">
+  <Image
+    src="/images/stock/<chosen-filename>.jpg"
+    alt="Precision CNC machining detail"
+    fill
+    sizes="100vw"
+    className="object-cover"
+  />
+</div>
+```
+
+Add `import Image from "next/image";` to the file's existing import block.
+
+- [ ] **Step 4: Add a photo banner to the Industries and Work hub pages**
+
+In both `app/industries/page.tsx` and `app/work/page.tsx`, add the same banner pattern as Step 3 (a different manifest image is fine, or the same one — use your judgment from what's available) directly below each page's intro `<div>` (headline + one-line description) and above the card grid. Add the `next/image` import to both files.
+
+- [ ] **Step 5: Verify the build**
+
+```bash
+./node_modules/.bin/next build
+```
+
+Expected: exits 0. Watch for a Next.js image-domain error — there should be none, since every image referenced is a local file under `public/`, which `next/image` serves without any `next.config.ts` changes.
+
+- [ ] **Step 6: Verify the rendered output and contrast**
+
+```bash
+./node_modules/.bin/next start -p 3104 &
+sleep 2
+curl -s http://localhost:3104 | grep -o 'stock/'
+curl -s http://localhost:3104/capabilities | grep -o 'stock/'
+curl -s http://localhost:3104/industries | grep -o 'stock/'
+curl -s http://localhost:3104/work | grep -o 'stock/'
+kill %1
+```
+
+Expected: all four greps find at least one match (confirms each page now references a stock image).
+
+Then open `http://localhost:3104` in a browser (manual check, can't be curl-verified) and confirm the hero headline and subhead text are still clearly readable over the photo — if not, deepen the scrim from `/70` to `/80` in Step 2 and re-check.
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add components/home/hero-section.tsx app/capabilities/page.tsx app/industries/page.tsx app/work/page.tsx
+git commit -m "$(cat <<'EOF'
+Add photography to home hero, Capabilities, Industries, and Work pages
+
+First photography pass across the site: a background photo behind
+the home hero (with a scrim for text contrast), and banner accents on
+Capabilities, Industries, and Work. Images are generic, free-license
+stock (public/images/stock/, see MANIFEST.md) standing in until real
+shop photography is supplied — never captioned as depicting a named
+client's actual part, per the Global Constraints.
+
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01HVcNcjykngEZuiQGvzQ6Wf
+EOF
+)"
+```
+
+---
 
 ## Phase 4 — RFQ form + file upload backend (plan in detail at phase start)
 
 Structured form (material, quantity, timeline, cert requirement, file input) per spec §4, a Next.js server action streaming the upload to Vercel Blob, a Resend email to Bushra with submission details and a file link, accepted-type validation (STEP/IGES/Parasolid/STL/PDF/DWG/DXF), and a visible turnaround-SLA statement at the point of submission. Form surface stays solid per the glass exclusion list.
+
+Still unassigned as of Phase 3's close, carry into this phase's own planning: the `/capabilities/5-axis-milling` process page and the four `/capabilities/materials/*` pages that Phase 2 Task 7 already links to from the Capabilities hub. No phase before this one owns building them.
 
 ## Phase 5 — About/Team + Quality & Certifications + Contact (plan in detail at phase start)
 
