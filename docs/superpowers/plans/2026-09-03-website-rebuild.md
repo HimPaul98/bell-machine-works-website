@@ -2631,7 +2631,7 @@ Then open `http://localhost:3104` in a browser (manual check, can't be curl-veri
 - [ ] **Step 7: Commit**
 
 ```bash
-git add components/home/hero-section.tsx app/capabilities/page.tsx app/industries/page.tsx app/work/page.tsx
+git add components/home/hero-section.tsx app/capabilities/page.tsx app/industries/page.tsx app/work/page.tsx public/images/stock/
 git commit -m "$(cat <<'EOF'
 Add photography to home hero, Capabilities, Industries, and Work pages
 
