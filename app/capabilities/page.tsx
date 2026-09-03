@@ -78,7 +78,7 @@ export default function CapabilitiesPage() {
 
       <div className="relative h-64 overflow-hidden rounded-2xl md:h-80">
         <Image
-          src="/images/stock/cnc-spindle-tooling-closeup.jpg"
+          src="/images/stock/cnc-milling-gear-part-macro.jpg"
           alt="Precision CNC machining detail"
           fill
           sizes="100vw"

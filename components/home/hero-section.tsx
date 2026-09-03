@@ -7,7 +7,7 @@ export function HeroSection() {
   return (
     <div className="relative overflow-hidden rounded-2xl">
       <Image
-        src="/images/stock/cnc-5-axis-mill-head-coolant.jpg"
+        src="/images/stock/cnc-5-axis-mill-aluminum-block.jpg"
         alt="CNC machining in progress"
         fill
         priority

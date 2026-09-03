@@ -22,7 +22,7 @@ export default function IndustriesPage() {
       </div>
       <div className="relative h-64 overflow-hidden rounded-2xl md:h-80">
         <Image
-          src="/images/stock/cnc-mill-drilling-hot-chips.jpg"
+          src="/images/stock/cnc-lathe-turning-shaft-detail.jpg"
           alt="Precision CNC machining detail"
           fill
           sizes="100vw"
