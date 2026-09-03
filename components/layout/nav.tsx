@@ -32,7 +32,7 @@ export function Nav() {
         </ul>
         <Link
           href="/quote"
-          className="rounded-full bg-accent-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-400"
+          className="rounded-full bg-accent-500 px-4 py-2 text-sm font-medium text-white transition-all hover:brightness-90"
         >
           Get a Quote
         </Link>

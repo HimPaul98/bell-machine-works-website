@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-@theme {
+@theme inline {
   /* Dark industrial base — graphite/steel, per Design-Direction.md §2 and §4 */
   --color-graphite-950: #0a0b0d;
   --color-graphite-900: #121316;
