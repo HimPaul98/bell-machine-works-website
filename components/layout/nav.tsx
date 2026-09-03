@@ -82,21 +82,22 @@ export function Nav() {
               </button>
             </div>
           </div>
-          {open && (
-            <ul id="mobile-menu" className="mt-4 flex flex-col gap-4 md:hidden">
-              {LINKS.map((link) => (
-                <li key={link.href}>
-                  <Link
-                    href={link.href}
-                    onClick={() => setOpen(false)}
-                    className={`block rounded-sm text-sm text-steel-200 hover:text-steel-100 ${FOCUS_RING}`}
-                  >
-                    {link.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
+          <ul
+            id="mobile-menu"
+            className={`mt-4 flex-col gap-4 md:hidden ${open ? "flex" : "hidden"}`}
+          >
+            {LINKS.map((link) => (
+              <li key={link.href}>
+                <Link
+                  href={link.href}
+                  onClick={() => setOpen(false)}
+                  className={`block rounded-sm text-sm text-steel-200 hover:text-steel-100 ${FOCUS_RING}`}
+                >
+                  {link.label}
+                </Link>
+              </li>
+            ))}
+          </ul>
         </GlassPanel>
       </Container>
     </header>

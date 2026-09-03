@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { PageContainer } from "@/components/layout/page-container";
 import { GlassPanel } from "@/components/ui/glass-panel";
@@ -6,6 +7,12 @@ import {
   materialFamilies,
   processes,
 } from "@/lib/content/capabilities";
+
+export const metadata: Metadata = {
+  title: "Capabilities — 5-Axis CNC Machining to ±0.0002\" | BELL Machine Works",
+  description:
+    "Tolerances, surface finishes, in-house processes, and material families BELL Machine Works machines for semiconductor, aerospace, and medical device teams. Gilroy, CA.",
+};
 
 const LINK_STYLE =
   "text-steel-100 underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-400 focus-visible:outline-offset-2";
@@ -30,7 +37,7 @@ export default function CapabilitiesPage() {
         <dl className="mt-6 grid gap-6 sm:grid-cols-2">
           {capabilityHighlights.map((item) => (
             <div key={item.label}>
-              <dt className="text-sm text-steel-400">{item.label}</dt>
+              <dt className="text-sm text-steel-200">{item.label}</dt>
               <dd className="mt-1 text-lg text-steel-100">{item.value}</dd>
             </div>
           ))}
@@ -43,9 +50,9 @@ export default function CapabilitiesPage() {
         </h2>
         <table className="mt-6 w-full text-left text-sm text-steel-200">
           <thead>
-            <tr className="border-b border-white/10 text-steel-400">
-              <th className="py-2 pr-4 font-medium">Process</th>
-              <th className="py-2 font-medium">Status</th>
+            <tr className="border-b border-white/10 text-steel-200">
+              <th className="py-2 pr-4 font-medium" scope="col">Process</th>
+              <th className="py-2 font-medium" scope="col">Status</th>
             </tr>
           </thead>
           <tbody>
@@ -61,7 +68,7 @@ export default function CapabilitiesPage() {
             ))}
           </tbody>
         </table>
-        <p className="mt-4 text-sm text-steel-400">
+        <p className="mt-4 text-sm text-steel-200">
           Additional in-house processes and a full equipment list are being
           confirmed and will be added here — ask about a specific process on
           your RFQ.
@@ -74,9 +81,9 @@ export default function CapabilitiesPage() {
         </h2>
         <table className="mt-6 w-full text-left text-sm text-steel-200">
           <thead>
-            <tr className="border-b border-white/10 text-steel-400">
-              <th className="py-2 pr-4 font-medium">Family</th>
-              <th className="py-2 font-medium">Examples</th>
+            <tr className="border-b border-white/10 text-steel-200">
+              <th className="py-2 pr-4 font-medium" scope="col">Family</th>
+              <th className="py-2 font-medium" scope="col">Examples</th>
             </tr>
           </thead>
           <tbody>

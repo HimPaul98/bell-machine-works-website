@@ -1,5 +1,5 @@
 // components/ui/glass-panel.tsx
-import { ElementType, ReactNode } from "react";
+import { ElementType, ReactNode, CSSProperties } from "react";
 
 interface GlassPanelProps {
   children: ReactNode;
@@ -28,10 +28,11 @@ export function GlassPanel({
       className={`relative rounded-2xl border border-white/10 bg-white/[0.06] backdrop-blur-xl transition-all duration-300 ease-out hover:border-white/20 ${
         hoverLift ? "hover:-translate-y-1" : ""
       } ${className}`}
+      {...rest}
       style={{
+        ...(rest.style as CSSProperties | undefined),
         boxShadow: "var(--glass-shadow)",
       }}
-      {...rest}
     >
       <span
         aria-hidden
