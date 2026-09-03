@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { PageContainer } from "@/components/layout/page-container";
 import { GlassPanel } from "@/components/ui/glass-panel";
@@ -74,6 +75,16 @@ export default function CapabilitiesPage() {
           your RFQ.
         </p>
       </section>
+
+      <div className="relative h-64 overflow-hidden rounded-2xl md:h-80">
+        <Image
+          src="/images/stock/cnc-spindle-tooling-closeup.jpg"
+          alt="Precision CNC machining detail"
+          fill
+          sizes="100vw"
+          className="object-cover"
+        />
+      </div>
 
       <section className="rounded-2xl border border-white/10 bg-graphite-900 p-8 md:p-12">
         <h2 className="text-xl font-semibold text-steel-100 md:text-2xl">

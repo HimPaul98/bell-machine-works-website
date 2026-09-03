@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import { PageContainer } from "@/components/layout/page-container";
 import { CaseStudyCard } from "@/components/work/case-study-card";
 import { caseStudies } from "@/lib/content/case-studies";
@@ -18,6 +19,15 @@ export default function WorkPage() {
           Named clients, real specs, real materials — one flagship case study per
           industry BELL serves.
         </p>
+      </div>
+      <div className="relative h-64 overflow-hidden rounded-2xl md:h-80">
+        <Image
+          src="/images/stock/precision-metal-parts-tray.jpg"
+          alt="Precision CNC machining detail"
+          fill
+          sizes="100vw"
+          className="object-cover"
+        />
       </div>
       <div className="grid gap-6 md:grid-cols-2">
         {caseStudies.map((caseStudy) => (

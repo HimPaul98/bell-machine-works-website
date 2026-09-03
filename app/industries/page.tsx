@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import { PageContainer } from "@/components/layout/page-container";
 import { IndustryCard } from "@/components/industries/industry-card";
 import { industries } from "@/lib/content/industries";
@@ -18,6 +19,15 @@ export default function IndustriesPage() {
           Six verticals where BELL has real, shipped work — not a generic capability
           claim for each.
         </p>
+      </div>
+      <div className="relative h-64 overflow-hidden rounded-2xl md:h-80">
+        <Image
+          src="/images/stock/cnc-mill-drilling-hot-chips.jpg"
+          alt="Precision CNC machining detail"
+          fill
+          sizes="100vw"
+          className="object-cover"
+        />
       </div>
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {industries.map((industry) => (

@@ -1,0 +1,19 @@
+# Stock Photo Manifest — Placeholder Imagery
+
+These are placeholder/interim stock photos standing in until the site owner (Bushra) supplies
+her own shop photography. When real photos arrive, these should be swapped out page by page,
+not necessarily all at once. All images below are licensed for free commercial use with no
+attribution required (Unsplash License / Pexels License / Pixabay Content License).
+
+- shop-floor-wide-machines.jpg — wide interior view of a manual/CNC machine shop floor with multiple lathes and tooling along a wall — source: Pexels, https://images.pexels.com/photos/18569750/pexels-photo-18569750.jpeg, suggested use: hero background
+- cnc-5-axis-mill-head-coolant.jpg — close-up of a CNC mill spindle and tool holder descending into a chuck with coolant lines, dark moody lighting — source: Pexels, https://images.pexels.com/photos/8865187/pexels-photo-8865187.jpeg, suggested use: hero background
+- cnc-lathe-shaft-closeup.jpg — close-up of a CNC lathe turning a metal shaft with coolant spray, dark background — source: Unsplash, https://images.unsplash.com/photo-1666618090858-fbcee636bd3e, suggested use: hero background
+- precision-machined-aluminum-block.jpg — precision-machined aluminum component (engine-block-style part) with intricate coolant channels, product-shot lighting on white background — source: Unsplash, https://images.unsplash.com/photo-1624841971070-73a6c96b8d53, suggested use: case-study card
+- precision-metal-parts-tray.jpg — rows of finished precision-machined metal fittings/bolts with polished finishes, dramatic lighting — source: Pixabay, https://cdn.pixabay.com/photo/2019/12/04/18/40/machined-parts-4673363_1280.jpg, suggested use: case-study card / industry card
+- cnc-milling-metal-shavings-action.jpg — CNC end mill actively cutting a steel block with metal chips flying, cool blue-toned lighting — source: Pexels, https://images.pexels.com/photos/10406128/pexels-photo-10406128.jpeg, suggested use: industry card / case-study card
+- cnc-mill-drilling-hot-chips.jpg — industrial mill/drill press cutting into metal with glowing hot chips, busy machine shop background — source: Pexels, https://images.pexels.com/photos/28929510/pexels-photo-28929510.jpeg, suggested use: industry card
+- lathe-turning-metal-macro.jpg — macro shot of a lathe turning a metal cylinder, warm amber/orange dramatic lighting — source: Pixabay, https://cdn.pixabay.com/photo/2017/05/30/15/28/lathe-2357305_1280.jpg, suggested use: detail accent
+- precision-drill-tip-macro.jpg — macro shot of a precision drill bit tip touching a metal ruler/gauge surface with reflection, shallow depth of field — source: Pexels, https://images.pexels.com/photos/20607184/pexels-photo-20607184.jpeg, suggested use: detail accent
+- cnc-spindle-tooling-closeup.jpg — close-up of a CNC spindle and tool head with dust/chip brush, dark industrial setting — source: Pexels, https://images.pexels.com/photos/7480240/pexels-photo-7480240.jpeg, suggested use: detail accent
+- milling-cutters-metal-shavings.jpg — macro of an end mill cutter mid-cut on a blue-painted vise fixture, blue metal shavings scattered — source: Pixabay, https://cdn.pixabay.com/photo/2018/10/11/04/57/milling-cutters-3738903_1280.jpg, suggested use: detail accent
+- technical-drawing-blueprint.jpg — flat-lay of technical/architectural blueprint drawings with ruler, marker pens, and pencil — source: Pexels, https://images.pexels.com/photos/5582585/pexels-photo-5582585.jpeg, suggested use: detail accent
