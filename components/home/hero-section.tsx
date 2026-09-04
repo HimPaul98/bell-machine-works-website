@@ -24,7 +24,7 @@ export function HeroSection() {
       </div>
       <div className="absolute inset-0 flex items-end p-6 md:p-14">
         <div className="max-w-2xl">
-          <p className="text-sm font-bold tracking-wide text-accent-300 uppercase drop-shadow-[0_1px_8px_rgba(0,0,0,0.7)]">
+          <p className="text-base font-bold tracking-wide text-accent-400 uppercase drop-shadow-[0_1px_8px_rgba(0,0,0,0.7)]">
             {heroContent.eyebrow}
           </p>
           <h1 className="mt-3 text-3xl font-semibold text-steel-100 drop-shadow-[0_2px_12px_rgba(0,0,0,0.6)] md:text-5xl">
