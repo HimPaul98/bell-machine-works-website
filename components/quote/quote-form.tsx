@@ -1,9 +1,10 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { submitQuoteRequest, type QuoteFormState } from "@/app/quote/actions";
 import { quoteContent } from "@/lib/content/quote";
+import { MAX_FILE_SIZE_BYTES } from "@/lib/quote/validation";
 
 const initialState: QuoteFormState = { status: "idle", errors: {}, message: "" };
 
@@ -27,10 +28,35 @@ function SubmitButton() {
 
 export function QuoteForm() {
   const [state, formAction] = useActionState(submitQuoteRequest, initialState);
+  const [clientFileError, setClientFileError] = useState<string | null>(null);
+
+  const resultPanelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (state.status === "success" || state.status === "unavailable") {
+      resultPanelRef.current?.focus();
+    }
+  }, [state.status]);
+
+  function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (file && file.size > MAX_FILE_SIZE_BYTES) {
+      setClientFileError("File is too large. Max 45MB.");
+      event.target.value = "";
+    } else {
+      setClientFileError(null);
+    }
+  }
 
   if (state.status === "success") {
     return (
-      <div className="rounded-2xl border border-white/10 bg-graphite-900 p-8 md:p-12">
+      <div
+        ref={resultPanelRef}
+        role="status"
+        aria-live="polite"
+        tabIndex={-1}
+        className="rounded-2xl border border-white/10 bg-graphite-900 p-8 md:p-12 focus:outline-none"
+      >
         <h2 className="text-xl font-semibold text-steel-100">Request received.</h2>
         <p className="mt-2 text-steel-200">{state.message}</p>
       </div>
@@ -39,7 +65,13 @@ export function QuoteForm() {
 
   if (state.status === "unavailable") {
     return (
-      <div className="rounded-2xl border border-white/10 bg-graphite-900 p-8 md:p-12">
+      <div
+        ref={resultPanelRef}
+        role="status"
+        aria-live="polite"
+        tabIndex={-1}
+        className="rounded-2xl border border-white/10 bg-graphite-900 p-8 md:p-12 focus:outline-none"
+      >
         <h2 className="text-xl font-semibold text-steel-100">Almost there.</h2>
         <p className="mt-2 text-steel-200">{state.message}</p>
       </div>
@@ -161,12 +193,16 @@ export function QuoteForm() {
             type="file"
             required
             accept={quoteContent.acceptedFileExtensions.join(",")}
+            onChange={handleFileChange}
             className={`${FIELD_STYLE} file:mr-4 file:rounded-full file:border-0 file:bg-accent-500 file:px-4 file:py-2 file:text-sm file:font-medium file:text-white`}
           />
           <p className="mt-2 text-sm text-steel-200">
             Accepted: {quoteContent.acceptedFileLabel}. Max {quoteContent.maxFileSizeLabel}.
           </p>
-          {state.errors.file && <p className={ERROR_STYLE}>{state.errors.file[0]}</p>}
+          {clientFileError && <p className={ERROR_STYLE}>{clientFileError}</p>}
+          {!clientFileError && state.errors.file && (
+            <p className={ERROR_STYLE}>{state.errors.file[0]}</p>
+          )}
         </div>
       </div>
 

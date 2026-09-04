@@ -16,8 +16,7 @@ export default function QuotePage() {
         <div>
           <h1 className="text-3xl font-semibold text-steel-100 md:text-4xl">Get a Quote</h1>
           <p className="mt-4 max-w-2xl text-steel-200">
-            Upload your drawing or model and tell us your material, quantity, and timeline — no
-            minimum order, from single prototypes to 1,000+ unit runs.
+            Upload your drawing or model and tell us your material, quantity, and timeline.
           </p>
         </div>
       </Reveal>

@@ -54,7 +54,7 @@ export async function submitQuoteRequest(
   if (file.size > MAX_FILE_SIZE_BYTES) {
     return {
       status: "error",
-      errors: { file: ["File is too large. Max 50MB."] },
+      errors: { file: ["File is too large. Max 45MB."] },
       message: "Please attach a smaller file.",
     };
   }

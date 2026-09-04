@@ -38,5 +38,5 @@ export const quoteContent = {
     ".dxf",
   ],
   acceptedFileLabel: "STEP, IGES, Parasolid, STL, PDF, DWG, DXF",
-  maxFileSizeLabel: "50MB",
+  maxFileSizeLabel: "45MB",
 };

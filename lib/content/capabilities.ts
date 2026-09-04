@@ -23,12 +23,7 @@ export const processes: ProcessDetail[] = [
     slug: "5-axis-milling",
     summary:
       'Simultaneous 5-axis milling for complex geometries that would otherwise need multiple setups — held to ±0.0002" on critical features in a single work-holding.',
-    specs: [
-      { label: "Tolerance", value: '±0.0002" on critical features' },
-      { label: "Micro-features", value: 'Down to < Ø0.01"' },
-      { label: "Surface finish", value: "To 32 μin Ra on optical-grade contact surfaces" },
-      { label: "Work envelope", value: '8" × 6" × 3" per setup' },
-    ],
+    specs: capabilityHighlights,
     applications: [
       "Semiconductor alignment brackets and vacuum-sealing components",
       "Aerospace collar/clamping assemblies and cryo-compatible propulsion tooling",
