@@ -20,13 +20,18 @@ export function isAcceptedFileType(filename: string): boolean {
   return ACCEPTED_FILE_EXTENSIONS.some((ext) => lower.endsWith(ext));
 }
 
+const emptyToUndefined = (val: unknown) => (val === "" || val === null ? undefined : val);
+
 export const quoteFormSchema = z.object({
   name: z.string().trim().min(1, "Name is required."),
   email: z.string().trim().email("Enter a valid email address."),
   company: z.string().trim().optional().nullable(),
   material: z.string().trim().min(1, "Select a material."),
-  quantity: z.coerce.number().int().min(1, "Quantity must be at least 1."),
-  timeline: z.string().trim().min(1, "Select a timeline."),
+  quantity: z.preprocess(
+    emptyToUndefined,
+    z.coerce.number().int().min(1, "Quantity must be at least 1.").optional(),
+  ),
+  timeline: z.preprocess(emptyToUndefined, z.string().trim().min(1, "Select a timeline.").optional()),
   certRequirement: z.string().trim().min(1, "Select a certification requirement."),
   notes: z.string().trim().optional().nullable(),
 });

@@ -13,6 +13,15 @@ const FIELD_STYLE =
 const LABEL_STYLE = "block text-sm font-medium text-steel-100";
 const ERROR_STYLE = "mt-1 text-sm text-red-400";
 
+function Required() {
+  return (
+    <span className="text-accent-400" aria-hidden="true">
+      {" "}
+      *
+    </span>
+  );
+}
+
 function SubmitButton() {
   const { pending } = useFormStatus();
   return (
@@ -96,6 +105,7 @@ export function QuoteForm() {
         <div>
           <label htmlFor="name" className={LABEL_STYLE}>
             Name
+            <Required />
           </label>
           <input id="name" name="name" type="text" required className={FIELD_STYLE} />
           {state.errors.name && <p className={ERROR_STYLE}>{state.errors.name[0]}</p>}
@@ -103,6 +113,7 @@ export function QuoteForm() {
         <div>
           <label htmlFor="email" className={LABEL_STYLE}>
             Email
+            <Required />
           </label>
           <input id="email" name="email" type="email" required className={FIELD_STYLE} />
           {state.errors.email && <p className={ERROR_STYLE}>{state.errors.email[0]}</p>}
@@ -116,6 +127,7 @@ export function QuoteForm() {
         <div>
           <label htmlFor="material" className={LABEL_STYLE}>
             Material
+            <Required />
           </label>
           <select id="material" name="material" required defaultValue="" className={FIELD_STYLE}>
             <option value="" disabled>
@@ -138,7 +150,6 @@ export function QuoteForm() {
             name="quantity"
             type="number"
             min={1}
-            required
             className={FIELD_STYLE}
           />
           {state.errors.quantity && <p className={ERROR_STYLE}>{state.errors.quantity[0]}</p>}
@@ -147,7 +158,7 @@ export function QuoteForm() {
           <label htmlFor="timeline" className={LABEL_STYLE}>
             Timeline
           </label>
-          <select id="timeline" name="timeline" required defaultValue="" className={FIELD_STYLE}>
+          <select id="timeline" name="timeline" defaultValue="" className={FIELD_STYLE}>
             <option value="" disabled>
               Select a timeline
             </option>
@@ -162,6 +173,7 @@ export function QuoteForm() {
         <div className="sm:col-span-2">
           <label htmlFor="certRequirement" className={LABEL_STYLE}>
             Certification requirement
+            <Required />
           </label>
           <select
             id="certRequirement"
@@ -192,6 +204,7 @@ export function QuoteForm() {
         <div className="sm:col-span-2">
           <label htmlFor="file" className={LABEL_STYLE}>
             Drawing or model file
+            <Required />
           </label>
           <input
             id="file"

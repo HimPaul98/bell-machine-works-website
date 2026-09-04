@@ -90,7 +90,7 @@ export default function CapabilitiesPage() {
             alt=""
             fill
             sizes="(min-width: 1152px) 1120px, 100vw"
-            className="object-cover"
+            className="object-cover object-[center_75%]"
           />
           <div
             className="absolute inset-0 bg-gradient-to-t from-graphite-950/40 to-transparent"

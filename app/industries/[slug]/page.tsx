@@ -48,16 +48,26 @@ export default async function IndustryDetailPage({
             sizes="(min-width: 1152px) 1120px, 100vw"
             className="object-cover"
           />
-          <div className="absolute inset-0 bg-graphite-900/78" aria-hidden />
+          {/* Bottom-anchored gradient rather than a flat scrim + opaque panel —
+              keeps the industry photo itself legible; only the text zone
+              darkens. Mirrors the home hero treatment. */}
+          <div
+            className="absolute inset-0 bg-gradient-to-t from-graphite-950 via-graphite-950/55 via-40% to-transparent to-75%"
+            aria-hidden
+          />
         </div>
-        <div className="absolute inset-0 flex items-center p-4 md:p-10">
-          <GlassPanel hoverLift={false} className="p-8 md:p-12">
-            <p className="text-sm text-accent-400">Industries</p>
-            <h1 className="mt-1 text-3xl font-semibold text-steel-100 md:text-4xl">
+        <div className="absolute inset-0 flex items-end p-6 md:p-14">
+          <div className="max-w-2xl">
+            <p className="text-sm text-accent-400 drop-shadow-[0_1px_8px_rgba(0,0,0,0.7)]">
+              Industries
+            </p>
+            <h1 className="mt-1 text-3xl font-semibold text-steel-100 drop-shadow-[0_2px_12px_rgba(0,0,0,0.6)] md:text-4xl">
               {industry.name}
             </h1>
-            <p className="mt-4 max-w-2xl text-lg text-steel-200">{industry.tagline}</p>
-          </GlassPanel>
+            <p className="mt-4 max-w-2xl text-lg text-steel-200 drop-shadow-[0_1px_8px_rgba(0,0,0,0.6)]">
+              {industry.tagline}
+            </p>
+          </div>
         </div>
       </div>
 
