@@ -39,4 +39,5 @@ export const quoteContent = {
   ],
   acceptedFileLabel: "STEP, IGES, Parasolid, STL, PDF, DWG, DXF",
   maxFileSizeLabel: "45MB",
+  fallbackContactEmail: "team@bellmachineworks.com",
 };

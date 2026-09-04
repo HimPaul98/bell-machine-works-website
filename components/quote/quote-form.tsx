@@ -74,6 +74,12 @@ export function QuoteForm() {
       >
         <h2 className="text-xl font-semibold text-steel-100">Almost there.</h2>
         <p className="mt-2 text-steel-200">{state.message}</p>
+        <a
+          href={`mailto:${quoteContent.fallbackContactEmail}`}
+          className="mt-4 inline-block rounded-full bg-accent-500 px-6 py-3 text-sm font-medium text-white transition-all hover:brightness-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-400 focus-visible:outline-offset-2"
+        >
+          Email {quoteContent.fallbackContactEmail}
+        </a>
       </div>
     );
   }

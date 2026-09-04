@@ -1,6 +1,7 @@
 "use server";
 
 import { quoteFormSchema, MAX_FILE_SIZE_BYTES, isAcceptedFileType } from "@/lib/quote/validation";
+import { quoteContent } from "@/lib/content/quote";
 
 export interface QuoteFormState {
   status: "idle" | "success" | "error" | "unavailable";
@@ -67,7 +68,6 @@ export async function submitQuoteRequest(
   return {
     status: "unavailable",
     errors: {},
-    message:
-      "Your request looks good, but online submission isn't live yet — we're finishing this feature. Please check back soon.",
+    message: `Your request looks good, but online submission isn't live yet — we're finishing this feature. In the meantime, email your drawing and details directly to ${quoteContent.fallbackContactEmail} and we'll get you a quote.`,
   };
 }
