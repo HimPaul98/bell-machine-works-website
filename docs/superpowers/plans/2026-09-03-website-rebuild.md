@@ -19,6 +19,9 @@
 - Every commit message ends with the standard Co-Authored-By / Claude-Session footer already used for the spec commit in this repo.
 - Stock/placeholder photography in `public/images/stock/` (manifest at `public/images/stock/MANIFEST.md`) is atmospheric and generic only — used for hero backgrounds, section texture, and unlabeled accents. It is never captioned or presented as depicting a specific named client's actual part; only real client-supplied photography may be attributed to a named client. Swap stock for real shop photography page-by-page as Bushra supplies it, not all at once.
 - Every new page (static or dynamic route) ships with page-specific `metadata` — a static `export const metadata: Metadata` for fixed routes, `generateMetadata` for dynamic `[slug]` routes. No route inherits the root layout's home-page title/description silently (Phase 2 final-review finding, now a standing rule).
+- All scroll-driven and entrance motion (Phase 4 onward) must degrade to a fully static, final-state render under `prefers-reduced-motion: reduce` — no exceptions.
+- Continuous scroll-linked effects (eye-level opacity dimming, sticky-stack scale/brightness) are never applied to spec tables/data or the RFQ form surface — same intent as the glass-usage exclusion list above. A one-time reveal-on-enter (fade + rise, settling at fully opaque/static) is fine on those sections; a continuous scroll-tied transform is not.
+- Continuous scroll-linked effects are desktop-only (viewport ≥ 768px); on narrower viewports they no-op and content renders in its default static layout, matching the reference site's own mobile gating.
 
 ---
 
@@ -2650,16 +2653,1466 @@ EOF
 
 ---
 
-## Phase 4 — RFQ form + file upload backend (plan in detail at phase start)
+## Phase 4 — Motion & Visual System (detailed below, build now)
 
-Structured form (material, quantity, timeline, cert requirement, file input) per spec §4, a Next.js server action streaming the upload to Vercel Blob, a Resend email to Bushra with submission details and a file link, accepted-type validation (STEP/IGES/Parasolid/STL/PDF/DWG/DXF), and a visible turnaround-SLA statement at the point of submission. Form surface stays solid per the glass exclusion list.
+Ports the interaction system from the reference site (aiautomationsociety.ai — real CSS/JS pulled from the live site, not the earlier text-fetch summary) onto BELL's existing dark "liquid glass" design from Phases 1-3: a Lenis-driven smooth-scroll engine with a `prefers-reduced-motion` fallback, a reveal-on-enter primitive applied across every existing page, eye-level text dimming retrofit on the home cert-roadmap proof points, sticky stacked cards retrofit on the Work hub's case studies, a pill-tab crossfade "stage" switcher as a new Industries hub spotlight, and a scroll-progress bar plus nav scroll-shadow. User-confirmed priority effects (all four in scope): smooth inertia scroll, eye-level dimming, sticky stacked cards, reveal-on-scroll + tab/slide switcher.
+
+**Reference site's real mechanism corrects the Design-Direction.md framing:** the reference is mostly opaque near-black cards with hairline borders, not heavy glassmorphism — its premium feel comes from scroll choreography (Lenis inertia, reveal timing, proximity-based dimming/scaling), not blur. This phase brings those *mechanics* over; it does not add more glass to BELL's existing surfaces.
+
+### Task 1: Scroll engine — Lenis, `useScrollFrame`, `prefers-reduced-motion`, verification harness
+
+**Files:**
+- Create: `lib/motion/scroll-engine.tsx`
+- Create: `scripts/scroll-check.mjs`
+- Modify: `app/layout.tsx`
+- Modify: `package.json`
+
+**Interfaces:**
+- Produces: `ScrollEngineProvider` (client component), `useScrollFrame(callback: (scrollY: number) => void): void`, `usePrefersReducedMotion(): boolean` — all exported from `@/lib/motion/scroll-engine`. Every later task in this phase imports one or more of these.
+- `useScrollFrame`'s callback fires once per Lenis scroll event with the current `scrollY`. It **never fires** when `prefers-reduced-motion: reduce` matches (the provider skips booting Lenis entirely in that case) — every consumer must therefore render a static, fully-visible default state that doesn't depend on the callback ever running.
+
+- [ ] **Step 1: Install the scroll library and headless-Chrome verification tooling**
+
+```bash
+npm install lenis
+npm install --save-dev puppeteer-core
+```
+
+`puppeteer-core` ships with no bundled Chromium download — it drives the Google Chrome.app already installed on this machine, which is what `scripts/scroll-check.mjs` (Step 4) uses.
+
+- [ ] **Step 2: Write the scroll engine**
+
+Create `lib/motion/scroll-engine.tsx`:
+
+```tsx
+// lib/motion/scroll-engine.tsx
+"use client";
+
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
+
+type FrameCallback = (scrollY: number) => void;
+
+interface ScrollEngineValue {
+  registerFrameCallback: (id: string, callback: FrameCallback) => () => void;
+}
+
+const ScrollEngineContext = createContext<ScrollEngineValue | null>(null);
+
+/** True when the user has requested reduced motion. Every motion primitive
+ *  in this phase must check this and render its final, static state
+ *  instead of animating when it's true. */
+export function usePrefersReducedMotion(): boolean {
+  const [reduced, setReduced] = useState(false);
+
+  useEffect(() => {
+    const query = window.matchMedia("(prefers-reduced-motion: reduce)");
+    setReduced(query.matches);
+    const onChange = (event: MediaQueryListEvent) => setReduced(event.matches);
+    query.addEventListener("change", onChange);
+    return () => query.removeEventListener("change", onChange);
+  }, []);
+
+  return reduced;
+}
+
+/** Registers `callback` to run once per Lenis scroll event with the
+ *  current scrollY. No-ops under prefers-reduced-motion — the provider
+ *  never boots Lenis in that case, so the callback simply never fires. */
+export function useScrollFrame(callback: FrameCallback) {
+  const engine = useContext(ScrollEngineContext);
+  const id = useId();
+  const callbackRef = useRef(callback);
+  callbackRef.current = callback;
+
+  useEffect(() => {
+    if (!engine) return;
+    return engine.registerFrameCallback(id, (y) => callbackRef.current(y));
+  }, [engine, id]);
+}
+
+export function ScrollEngineProvider({ children }: { children: ReactNode }) {
+  const reducedMotion = usePrefersReducedMotion();
+  const callbacksRef = useRef(new Map<string, FrameCallback>());
+
+  useEffect(() => {
+    if (reducedMotion) return;
+
+    let cancelled = false;
+    let rafId = 0;
+    let lenisInstance: { raf: (t: number) => void; destroy: () => void } | null = null;
+
+    function broadcast(scrollY: number) {
+      for (const callback of callbacksRef.current.values()) callback(scrollY);
+    }
+
+    import("lenis").then(({ default: Lenis }) => {
+      if (cancelled) return;
+      const lenis = new Lenis({ lerp: 0.09, wheelMultiplier: 1, smoothWheel: true });
+      lenisInstance = lenis;
+
+      const raf = (time: number) => {
+        lenis.raf(time);
+        rafId = requestAnimationFrame(raf);
+      };
+      rafId = requestAnimationFrame(raf);
+
+      lenis.on("scroll", ({ scroll }: { scroll: number }) => broadcast(scroll));
+      broadcast(window.scrollY);
+
+      (window as typeof window & { __scrollEngine?: unknown }).__scrollEngine = { lenis };
+    });
+
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(rafId);
+      lenisInstance?.destroy();
+    };
+  }, [reducedMotion]);
+
+  const registerFrameCallback = (id: string, callback: FrameCallback) => {
+    callbacksRef.current.set(id, callback);
+    return () => {
+      callbacksRef.current.delete(id);
+    };
+  };
+
+  return (
+    <ScrollEngineContext.Provider value={{ registerFrameCallback }}>
+      {children}
+    </ScrollEngineContext.Provider>
+  );
+}
+```
+
+- [ ] **Step 3: Mount the provider in the root layout**
+
+In `app/layout.tsx`, add the import and wrap the body's existing children:
+
+```tsx
+import { ScrollEngineProvider } from "@/lib/motion/scroll-engine";
+```
+
+Replace:
+
+```tsx
+      <body className="flex min-h-screen flex-col bg-graphite-950 antialiased">
+        <BackgroundDepth />
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[100] focus:rounded-md focus:bg-graphite-900 focus:px-4 focus:py-2 focus:text-steel-100 focus:outline focus:outline-2 focus:outline-accent-400"
+        >
+          Skip to content
+        </a>
+        <Nav />
+        <main id="main-content" className="flex-1">
+          {children}
+        </main>
+        <Footer />
+      </body>
+```
+
+with:
+
+```tsx
+      <body className="flex min-h-screen flex-col bg-graphite-950 antialiased">
+        <ScrollEngineProvider>
+          <BackgroundDepth />
+          <a
+            href="#main-content"
+            className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[100] focus:rounded-md focus:bg-graphite-900 focus:px-4 focus:py-2 focus:text-steel-100 focus:outline focus:outline-2 focus:outline-accent-400"
+          >
+            Skip to content
+          </a>
+          <Nav />
+          <main id="main-content" className="flex-1">
+            {children}
+          </main>
+          <Footer />
+        </ScrollEngineProvider>
+      </body>
+```
+
+- [ ] **Step 4: Write the scroll-verification script**
+
+Static single-frame headless-Chrome screenshots (used in Phase 3) can't verify scroll-position-dependent effects. Create `scripts/scroll-check.mjs`:
+
+```js
+#!/usr/bin/env node
+// scripts/scroll-check.mjs
+// Drives the system Chrome via puppeteer-core (no bundled Chromium) to
+// screenshot a page at given scroll positions and report console/page
+// errors and whether the scroll engine booted. Usage:
+//   node scripts/scroll-check.mjs <url> <outDir> [scrollY...]
+import puppeteer from "puppeteer-core";
+import { mkdir } from "node:fs/promises";
+
+const [, , url, outDir, ...scrollArgs] = process.argv;
+if (!url || !outDir) {
+  console.error("Usage: node scripts/scroll-check.mjs <url> <outDir> [scrollY...]");
+  process.exit(1);
+}
+
+const executablePath =
+  process.env.CHROME_PATH ?? "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
+
+await mkdir(outDir, { recursive: true });
+
+const browser = await puppeteer.launch({
+  executablePath,
+  headless: true,
+  args: ["--no-sandbox", "--disable-gpu"],
+});
+const page = await browser.newPage();
+
+const errors = [];
+page.on("pageerror", (err) => errors.push(String(err)));
+page.on("console", (msg) => {
+  if (msg.type() === "error") errors.push(msg.text());
+});
+
+await page.setViewport({ width: 1440, height: 900 });
+await page.goto(url, { waitUntil: "networkidle0" });
+
+const hasScrollEngine = await page.evaluate(() => typeof window.__scrollEngine !== "undefined");
+console.log("scrollEngine present:", hasScrollEngine);
+
+const positions = scrollArgs.length ? scrollArgs.map(Number) : [0];
+for (const y of positions) {
+  await page.evaluate((scrollY) => window.scrollTo(0, scrollY), y);
+  await new Promise((resolve) => setTimeout(resolve, 400));
+  await page.screenshot({ path: `${outDir}/scroll-${y}.png` });
+}
+
+console.log(`Captured ${positions.length} screenshot(s) in ${outDir}`);
+await browser.close();
+
+if (errors.length) {
+  console.error("Console/page errors:", errors);
+  process.exit(1);
+}
+```
+
+`page.evaluate`'s callback runs inside the browser, not in this Node script, so it's plain JS with a runtime `typeof` check — no TypeScript cast needed or usable there.
+
+- [ ] **Step 5: Add a convenience npm script**
+
+In `package.json`, add to `"scripts"`:
+
+```json
+    "scroll-check": "node scripts/scroll-check.mjs"
+```
+
+- [ ] **Step 6: Verify the build**
+
+```bash
+./node_modules/.bin/next build
+```
+
+Expected: exits 0.
+
+- [ ] **Step 7: Verify the scroll engine boots**
+
+```bash
+./node_modules/.bin/next start -p 3110 &
+sleep 2
+node scripts/scroll-check.mjs http://localhost:3110 /tmp/scroll-check-task1 0 800
+kill %1
+```
+
+Expected: `scrollEngine present: true` printed, two screenshots written to `/tmp/scroll-check-task1`, exit code 0 (no console/page errors).
+
+- [ ] **Step 8: Commit**
+
+```bash
+git add lib/motion/scroll-engine.tsx scripts/scroll-check.mjs app/layout.tsx package.json package-lock.json
+git commit -m "$(cat <<'EOF'
+Add Lenis scroll engine and scroll-verification harness
+
+Foundation for the motion system: a ScrollEngineProvider mounted in
+the root layout drives Lenis smooth-scroll and broadcasts scrollY to
+any component via useScrollFrame, fully skipped under
+prefers-reduced-motion so consumers fall back to their static state.
+scripts/scroll-check.mjs drives the system Chrome via puppeteer-core
+to screenshot scroll-position-dependent effects, which static
+headless-Chrome screenshots can't verify.
+
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_014oH9o221g8kZmeMcjpyk3H
+EOF
+)"
+```
+
+### Task 2: `<Reveal>` fade-up-on-enter primitive, applied across every existing page
+
+**Files:**
+- Create: `components/motion/reveal.tsx`
+- Modify: `components/home/cert-roadmap-section.tsx`
+- Modify: `components/home/client-teaser-section.tsx`
+- Modify: `app/capabilities/page.tsx`
+- Modify: `app/industries/page.tsx`
+- Modify: `app/work/page.tsx`
+
+**Interfaces:**
+- Consumes: `usePrefersReducedMotion` from `@/lib/motion/scroll-engine` (Task 1).
+- Produces: `Reveal` component (default export from `@/components/motion/reveal`), props `{ children: ReactNode; className?: string; delay?: number }`. Wraps a single block-level child in a `div`; callers keep their own semantic wrapper (`section`, etc.) as the child.
+- The home hero (`HeroSection`) is intentionally **not** wrapped — it's above the fold and already visible on load, matching the reference site's own choice not to `.reveal` its hero. The Work hub's case-study grid is intentionally **not** wrapped here — Task 4 replaces it with `<StickyStack>`, which has its own entrance behavior.
+
+- [ ] **Step 1: Write the Reveal primitive**
+
+Create `components/motion/reveal.tsx`:
+
+```tsx
+// components/motion/reveal.tsx
+"use client";
+
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { usePrefersReducedMotion } from "@/lib/motion/scroll-engine";
+
+interface RevealProps {
+  children: ReactNode;
+  className?: string;
+  /** Delay in ms before the fade-up starts, once the element has entered
+   *  the viewport. For staggering a sequence of Reveals. */
+  delay?: number;
+}
+
+/** Fades a block up into place the first time it enters the viewport, then
+ *  stops watching it. Mirrors aiautomationsociety.ai's `.reveal`/`.is-in`
+ *  pattern. Renders immediately visible, with no animation, under
+ *  prefers-reduced-motion. */
+export function Reveal({ children, className = "", delay = 0 }: RevealProps) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [isIn, setIsIn] = useState(false);
+  const reducedMotion = usePrefersReducedMotion();
+
+  useEffect(() => {
+    if (reducedMotion) {
+      setIsIn(true);
+      return;
+    }
+    const node = ref.current;
+    if (!node) return;
+
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry.isIntersecting) return;
+        timer = setTimeout(() => setIsIn(true), delay);
+        observer.unobserve(node);
+      },
+      { threshold: 0.12, rootMargin: "0px 0px -8% 0px" },
+    );
+    observer.observe(node);
+
+    return () => {
+      observer.disconnect();
+      if (timer) clearTimeout(timer);
+    };
+  }, [reducedMotion, delay]);
+
+  return (
+    <div
+      ref={ref}
+      className={`transition-all duration-1000 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+        isIn ? "translate-y-0 opacity-100" : "translate-y-[18px] opacity-0"
+      } ${className}`}
+    >
+      {children}
+    </div>
+  );
+}
+```
+
+- [ ] **Step 2: Wrap the home page's two below-fold sections**
+
+In `components/home/cert-roadmap-section.tsx`, add the import and wrap the returned `<section>`:
+
+```tsx
+import Link from "next/link";
+import { Reveal } from "@/components/motion/reveal";
+import { certRoadmapContent } from "@/lib/content/home";
+
+export function CertRoadmapSection() {
+  return (
+    <Reveal>
+      <section className="rounded-2xl border border-white/10 bg-graphite-900 p-8 md:p-12">
+        <h2 className="text-xl font-semibold text-steel-100 md:text-2xl">
+          {certRoadmapContent.heading}
+        </h2>
+        <p className="mt-3 max-w-2xl text-steel-200">{certRoadmapContent.status}</p>
+        <ul className="mt-6 grid gap-3 text-sm text-steel-200 md:grid-cols-2">
+          {certRoadmapContent.proofPoints.map((point) => (
+            <li key={point} className="flex gap-2">
+              <span aria-hidden className="text-accent-400">
+                &middot;
+              </span>
+              {point}
+            </li>
+          ))}
+        </ul>
+        <Link
+          href={certRoadmapContent.ctaHref}
+          className="mt-6 inline-block text-sm font-medium text-accent-400 underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-400 focus-visible:outline-offset-2"
+        >
+          {certRoadmapContent.ctaLabel} →
+        </Link>
+      </section>
+    </Reveal>
+  );
+}
+```
+
+(Task 3 rewrites this component's body again — the `<ul>` of proof points becomes eye-level-dimmed paragraphs. This step's job is only to establish the `<Reveal>` wrapper.)
+
+In `components/home/client-teaser-section.tsx`, add the import and wrap the returned `<section>`:
+
+```tsx
+import Link from "next/link";
+import { Reveal } from "@/components/motion/reveal";
+import { CaseStudyCard } from "@/components/work/case-study-card";
+import { caseStudies } from "@/lib/content/case-studies";
+
+export function ClientTeaserSection() {
+  return (
+    <Reveal>
+      <section>
+        <div className="flex items-center justify-between gap-4">
+          <h2 className="text-xl font-semibold text-steel-100 md:text-2xl">
+            Trusted by engineering teams at
+          </h2>
+          <Link
+            href="/work"
+            className="shrink-0 text-sm font-medium text-accent-400 underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-400 focus-visible:outline-offset-2"
+          >
+            See all work →
+          </Link>
+        </div>
+        <div className="mt-6 grid gap-6 md:grid-cols-2">
+          {caseStudies.map((study) => (
+            <CaseStudyCard key={study.slug} caseStudy={study} />
+          ))}
+        </div>
+      </section>
+    </Reveal>
+  );
+}
+```
+
+- [ ] **Step 3: Wrap the Capabilities page's five sections**
+
+In `app/capabilities/page.tsx`, add `import { Reveal } from "@/components/motion/reveal";` and wrap each of the five direct children of `<PageContainer>` (the intro `<div>`, the "Machining capability" `<section>`, the "Processes" `<section>`, the image banner `<div>`, the "Materials" `<section>`, and the closing `<GlassPanel>`) each in its own `<Reveal>` with a `delay` that steps up by 80ms per section so they cascade in rather than all firing on the same frame:
+
+```tsx
+export default function CapabilitiesPage() {
+  return (
+    <PageContainer className="flex flex-col gap-12">
+      <Reveal>
+        <div>
+          <h1 className="text-3xl font-semibold text-steel-100 md:text-4xl">
+            Capabilities
+          </h1>
+          <p className="mt-4 max-w-2xl text-steel-200">
+            Precision CNC machining built around real tolerance and finish
+            requirements — not generic shop capability claims.
+          </p>
+        </div>
+      </Reveal>
+
+      <Reveal delay={80}>
+        <section className="rounded-2xl border border-white/10 bg-graphite-900 p-8 md:p-12">
+          <h2 className="text-xl font-semibold text-steel-100 md:text-2xl">
+            Machining capability
+          </h2>
+          <dl className="mt-6 grid gap-6 sm:grid-cols-2">
+            {capabilityHighlights.map((item) => (
+              <div key={item.label}>
+                <dt className="text-sm text-steel-200">{item.label}</dt>
+                <dd className="mt-1 text-lg text-steel-100">{item.value}</dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+      </Reveal>
+
+      <Reveal delay={160}>
+        <section className="rounded-2xl border border-white/10 bg-graphite-900 p-8 md:p-12">
+          <h2 className="text-xl font-semibold text-steel-100 md:text-2xl">
+            Processes
+          </h2>
+          <table className="mt-6 w-full text-left text-sm text-steel-200">
+            <thead>
+              <tr className="border-b border-white/10 text-steel-200">
+                <th className="py-2 pr-4 font-medium" scope="col">Process</th>
+                <th className="py-2 font-medium" scope="col">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {processes.map((process) => (
+                <tr key={process.name} className="border-b border-white/5">
+                  <td className="py-3 pr-4">
+                    <Link href={process.href} className={LINK_STYLE}>
+                      {process.name}
+                    </Link>
+                  </td>
+                  <td className="py-3">{process.status}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p className="mt-4 text-sm text-steel-200">
+            Additional in-house processes and a full equipment list are being
+            confirmed and will be added here — ask about a specific process on
+            your RFQ.
+          </p>
+        </section>
+      </Reveal>
+
+      <Reveal delay={240}>
+        <div className="relative h-64 overflow-hidden rounded-2xl md:h-80">
+          <Image
+            src="/images/stock/cnc-milling-gear-part-macro.jpg"
+            alt=""
+            fill
+            sizes="(min-width: 1152px) 1120px, 100vw"
+            className="object-cover"
+          />
+        </div>
+      </Reveal>
+
+      <Reveal delay={320}>
+        <section className="rounded-2xl border border-white/10 bg-graphite-900 p-8 md:p-12">
+          <h2 className="text-xl font-semibold text-steel-100 md:text-2xl">
+            Materials
+          </h2>
+          <table className="mt-6 w-full text-left text-sm text-steel-200">
+            <thead>
+              <tr className="border-b border-white/10 text-steel-200">
+                <th className="py-2 pr-4 font-medium" scope="col">Family</th>
+                <th className="py-2 font-medium" scope="col">Examples</th>
+              </tr>
+            </thead>
+            <tbody>
+              {materialFamilies.map((family) => (
+                <tr key={family.name} className="border-b border-white/5">
+                  <td className="py-3 pr-4">
+                    <Link href={family.href} className={LINK_STYLE}>
+                      {family.name}
+                    </Link>
+                  </td>
+                  <td className="py-3">{family.examples}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      </Reveal>
+
+      <Reveal delay={400}>
+        <GlassPanel className="flex flex-col items-start gap-4 p-8 md:flex-row md:items-center md:justify-between md:p-12">
+          <div>
+            <h2 className="text-xl font-semibold text-steel-100">
+              Have a print or model ready?
+            </h2>
+            <p className="mt-2 text-steel-200">Most quotes go out within hours.</p>
+          </div>
+          <Link
+            href="/quote"
+            className="inline-block rounded-full bg-accent-500 px-6 py-3 text-sm font-medium text-white transition-all hover:brightness-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-400 focus-visible:outline-offset-2"
+          >
+            Get a Quote
+          </Link>
+        </GlassPanel>
+      </Reveal>
+    </PageContainer>
+  );
+}
+```
+
+This is a one-time fade+rise settling at each section's normal fully-opaque, fully-static appearance — it does not put a continuous scroll-linked effect on the Processes/Materials tables, so it doesn't conflict with the Global Constraints' spec-table exclusion rule.
+
+- [ ] **Step 4: Wrap the Industries page's intro, banner, and grid**
+
+In `app/industries/page.tsx`, add `import { Reveal } from "@/components/motion/reveal";` and wrap the intro `<div>`, the banner `<div>`, and the grid `<div>`:
+
+```tsx
+export default function IndustriesPage() {
+  return (
+    <PageContainer className="flex flex-col gap-12">
+      <Reveal>
+        <div>
+          <h1 className="text-3xl font-semibold text-steel-100 md:text-4xl">Industries</h1>
+          <p className="mt-4 max-w-2xl text-steel-200">
+            Six verticals where BELL has real, shipped work — not a generic capability
+            claim for each.
+          </p>
+        </div>
+      </Reveal>
+      <Reveal delay={80}>
+        <div className="relative h-64 overflow-hidden rounded-2xl md:h-80">
+          <Image
+            src="/images/stock/cnc-lathe-turning-shaft-detail.jpg"
+            alt=""
+            fill
+            sizes="(min-width: 1152px) 1120px, 100vw"
+            className="object-cover"
+          />
+        </div>
+      </Reveal>
+      <Reveal delay={160}>
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {industries.map((industry) => (
+            <IndustryCard key={industry.slug} industry={industry} />
+          ))}
+        </div>
+      </Reveal>
+    </PageContainer>
+  );
+}
+```
+
+(Task 5 adds a new `<TabStage>` spotlight section between the banner and the grid — this step's ordering already anticipates that gap.)
+
+- [ ] **Step 5: Wrap the Work page's intro and banner**
+
+In `app/work/page.tsx`, add `import { Reveal } from "@/components/motion/reveal";` and wrap only the intro `<div>` and the banner `<div>` (the case-study grid below them is replaced entirely in Task 4):
+
+```tsx
+export default function WorkPage() {
+  return (
+    <PageContainer className="flex flex-col gap-12">
+      <Reveal>
+        <div>
+          <h1 className="text-3xl font-semibold text-steel-100 md:text-4xl">Work</h1>
+          <p className="mt-4 max-w-2xl text-steel-200">
+            Named clients, real specs, real materials — one flagship case study per
+            industry BELL serves.
+          </p>
+        </div>
+      </Reveal>
+      <Reveal delay={80}>
+        <div className="relative h-64 overflow-hidden rounded-2xl md:h-80">
+          <Image
+            src="/images/stock/precision-metal-parts-tray.jpg"
+            alt=""
+            fill
+            sizes="(min-width: 1152px) 1120px, 100vw"
+            className="object-cover"
+          />
+        </div>
+      </Reveal>
+      <div className="grid gap-6 md:grid-cols-2">
+        {caseStudies.map((caseStudy) => (
+          <CaseStudyCard key={caseStudy.slug} caseStudy={caseStudy} />
+        ))}
+      </div>
+    </PageContainer>
+  );
+}
+```
+
+- [ ] **Step 6: Verify the build**
+
+```bash
+./node_modules/.bin/next build
+```
+
+Expected: exits 0.
+
+- [ ] **Step 7: Verify reveal-in behavior across pages**
+
+```bash
+./node_modules/.bin/next start -p 3110 &
+sleep 2
+node scripts/scroll-check.mjs http://localhost:3110/ /tmp/scroll-check-task2/home 0 900
+node scripts/scroll-check.mjs http://localhost:3110/capabilities /tmp/scroll-check-task2/capabilities 0 900 1800
+node scripts/scroll-check.mjs http://localhost:3110/industries /tmp/scroll-check-task2/industries 0 900
+node scripts/scroll-check.mjs http://localhost:3110/work /tmp/scroll-check-task2/work 0 900
+kill %1
+```
+
+Expected: all four exit 0 with no console/page errors. Open the `scroll-800`/`scroll-900` screenshots and confirm the below-fold sections are visible and opaque (not stuck at `opacity-0`) — that would indicate the IntersectionObserver never fired.
+
+- [ ] **Step 8: Commit**
+
+```bash
+git add components/motion/reveal.tsx components/home/cert-roadmap-section.tsx components/home/client-teaser-section.tsx app/capabilities/page.tsx app/industries/page.tsx app/work/page.tsx
+git commit -m "$(cat <<'EOF'
+Add Reveal fade-up-on-enter primitive across every existing page
+
+Applies aiautomationsociety.ai's .reveal/.is-in entrance pattern to
+every below-fold section on the home, Capabilities, Industries, and
+Work pages via a shared IntersectionObserver-driven Reveal component.
+One-time fade+rise settling at each section's normal static
+appearance — spec tables keep their content fully static and legible
+throughout, per the Global Constraints.
+
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_014oH9o221g8kZmeMcjpyk3H
+EOF
+)"
+```
+
+### Task 3: Eye-level text dimming, retrofit on the home cert-roadmap proof points
+
+**Files:**
+- Create: `lib/motion/use-eye-level-opacity.ts`
+- Create: `components/motion/eye-level-paragraph.tsx`
+- Modify: `components/home/cert-roadmap-section.tsx`
+
+**Interfaces:**
+- Consumes: `useScrollFrame` from `@/lib/motion/scroll-engine` (Task 1).
+- Produces: `useEyeLevelOpacity<T extends HTMLElement>(): { ref: RefObject<T | null>; opacity: number }` from `@/lib/motion/use-eye-level-opacity`; `EyeLevelParagraph` component from `@/components/motion/eye-level-paragraph`.
+- Retrofit target: `certRoadmapContent.proofPoints` (`lib/content/home.ts`) — the four already-approved factual lines ("Full material traceability with mill test reports (MTRs) on every job", etc.). No new copy is introduced; only the presentation changes from a static two-column list to a stacked, scroll-dimmed sequence.
+
+- [ ] **Step 1: Write the eye-level opacity hook**
+
+Create `lib/motion/use-eye-level-opacity.ts`:
+
+```ts
+// lib/motion/use-eye-level-opacity.ts
+"use client";
+
+import { useRef, useState } from "react";
+import { useScrollFrame } from "@/lib/motion/scroll-engine";
+
+/** Attach the returned ref to a text block. Its opacity reads 1 when the
+ *  block's vertical center sits at the viewport's vertical center, dimming
+ *  to a floor of 0.22 as it moves away — mirrors aiautomationsociety.ai's
+ *  `[data-intro]` paragraph treatment. Desktop-only (viewport >= 768px);
+ *  holds at full opacity on narrow viewports and whenever the scroll
+ *  engine's callback never fires (prefers-reduced-motion). */
+export function useEyeLevelOpacity<T extends HTMLElement>() {
+  const ref = useRef<T>(null);
+  const [opacity, setOpacity] = useState(1);
+
+  useScrollFrame(() => {
+    const node = ref.current;
+    if (!node || window.innerWidth < 768) {
+      setOpacity(1);
+      return;
+    }
+    const rect = node.getBoundingClientRect();
+    const vh = window.innerHeight;
+    if (rect.bottom < -200 || rect.top > vh + 200) return;
+
+    const center = rect.top + rect.height / 2;
+    const distance = Math.abs(center - vh * 0.5) / (vh * 0.42);
+    const next = Math.max(0.22, 1 - Math.max(0, distance - 0.1) * 1.3);
+    setOpacity((prev) => (Math.abs(prev - next) > 0.01 ? next : prev));
+  });
+
+  return { ref, opacity };
+}
+```
+
+- [ ] **Step 2: Write the EyeLevelParagraph wrapper**
+
+Create `components/motion/eye-level-paragraph.tsx`:
+
+```tsx
+// components/motion/eye-level-paragraph.tsx
+"use client";
+
+import type { ReactNode } from "react";
+import { useEyeLevelOpacity } from "@/lib/motion/use-eye-level-opacity";
+
+export function EyeLevelParagraph({
+  children,
+  className = "",
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  const { ref, opacity } = useEyeLevelOpacity<HTMLParagraphElement>();
+  return (
+    <p
+      ref={ref}
+      style={{ opacity }}
+      className={`transition-opacity duration-300 ${className}`}
+    >
+      {children}
+    </p>
+  );
+}
+```
+
+- [ ] **Step 3: Retrofit CertRoadmapSection's proof points**
+
+Replace the full contents of `components/home/cert-roadmap-section.tsx`:
+
+```tsx
+import Link from "next/link";
+import { Reveal } from "@/components/motion/reveal";
+import { EyeLevelParagraph } from "@/components/motion/eye-level-paragraph";
+import { certRoadmapContent } from "@/lib/content/home";
+
+export function CertRoadmapSection() {
+  return (
+    <Reveal>
+      <section className="rounded-2xl border border-white/10 bg-graphite-900 p-8 md:p-12">
+        <h2 className="text-xl font-semibold text-steel-100 md:text-2xl">
+          {certRoadmapContent.heading}
+        </h2>
+        <p className="mt-3 max-w-2xl text-steel-200">{certRoadmapContent.status}</p>
+        <div className="mt-10 flex flex-col gap-6">
+          {certRoadmapContent.proofPoints.map((point) => (
+            <EyeLevelParagraph
+              key={point}
+              className="max-w-2xl text-xl font-medium text-steel-100 md:text-2xl"
+            >
+              {point}
+            </EyeLevelParagraph>
+          ))}
+        </div>
+        <Link
+          href={certRoadmapContent.ctaHref}
+          className="mt-8 inline-block text-sm font-medium text-accent-400 underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-400 focus-visible:outline-offset-2"
+        >
+          {certRoadmapContent.ctaLabel} →
+        </Link>
+      </section>
+    </Reveal>
+  );
+}
+```
+
+- [ ] **Step 4: Verify the build**
+
+```bash
+./node_modules/.bin/next build
+```
+
+Expected: exits 0.
+
+- [ ] **Step 5: Verify the dimming behaves as scroll position changes**
+
+```bash
+./node_modules/.bin/next start -p 3110 &
+sleep 2
+node scripts/scroll-check.mjs http://localhost:3110/ /tmp/scroll-check-task3 400 700 1000
+kill %1
+```
+
+Expected: exits 0. Compare the three screenshots — the proof-point paragraph nearest the viewport's vertical center in each should read visibly brighter than the others; none should ever be fully invisible (floor is 0.22, not 0).
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add lib/motion/use-eye-level-opacity.ts components/motion/eye-level-paragraph.tsx components/home/cert-roadmap-section.tsx
+git commit -m "$(cat <<'EOF'
+Add eye-level text dimming, retrofit on home cert-roadmap proof points
+
+Reuses the four already-approved proof-point lines verbatim; only the
+presentation changes, from a static two-column list to a stacked
+sequence whose opacity tracks distance from the viewport's vertical
+center (aiautomationsociety.ai's [data-intro] treatment), floored at
+0.22 so nothing fully disappears. Desktop-only; static full opacity
+under prefers-reduced-motion or on narrow viewports.
+
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_014oH9o221g8kZmeMcjpyk3H
+EOF
+)"
+```
+
+### Task 4: Sticky stacked cards, retrofit on the Work hub's case studies
+
+**Files:**
+- Create: `components/motion/sticky-stack.tsx`
+- Modify: `app/work/page.tsx`
+
+**Interfaces:**
+- Consumes: `useScrollFrame` from `@/lib/motion/scroll-engine` (Task 1).
+- Produces: `StickyStack<T>` generic component from `@/components/motion/sticky-stack`, props `{ items: T[]; getKey: (item: T) => string; renderItem: (item: T, index: number) => ReactNode; className?: string }`.
+- Design decision: the reference's `.deck` pattern pairs an image with copy per card, but BELL's case studies have no per-item photography, and the Global Constraints forbid attaching stock photos to a specific named client's part. This retrofit is therefore a **text-only** deck — large-type, generous padding, using the case studies' existing `client`/`sector`/`summary`/`specHighlights` fields only, no new copy and no imagery.
+
+- [ ] **Step 1: Write the StickyStack primitive**
+
+Create `components/motion/sticky-stack.tsx`:
+
+```tsx
+// components/motion/sticky-stack.tsx
+"use client";
+
+import { useRef, type ReactNode } from "react";
+import { useScrollFrame } from "@/lib/motion/scroll-engine";
+
+interface StickyStackProps<T> {
+  items: T[];
+  getKey: (item: T) => string;
+  renderItem: (item: T, index: number) => ReactNode;
+  className?: string;
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
+}
+
+/** Sticky-positioned card stack: as the next card climbs over the previous
+ *  one, the card underneath scales down and dims proportionally to how
+ *  much they overlap. Mirrors aiautomationsociety.ai's `[data-deck]`
+ *  treatment. The scale/dim math only runs while useScrollFrame's
+ *  callback fires, which the scroll engine skips entirely under
+ *  prefers-reduced-motion — cards then simply hold their default,
+ *  undimmed scale. Sticky positioning itself (not the scale/dim
+ *  animation) is desktop-only via the `md:` breakpoint; narrow
+ *  viewports get a plain stacked list. */
+export function StickyStack<T>({ items, getKey, renderItem, className = "" }: StickyStackProps<T>) {
+  const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
+
+  useScrollFrame(() => {
+    if (window.innerWidth < 768) return;
+    const rects = cardRefs.current.map((el) => el?.getBoundingClientRect() ?? null);
+
+    for (let i = 0; i < cardRefs.current.length - 1; i++) {
+      const el = cardRefs.current[i];
+      const rect = rects[i];
+      const nextRect = rects[i + 1];
+      if (!el || !rect || !nextRect) continue;
+
+      const progress = clamp((rect.bottom - nextRect.top) / rect.height, 0, 1);
+      el.style.transform = `scale(${(1 - progress * 0.05).toFixed(4)})`;
+      el.style.filter = `brightness(${(1 - progress * 0.45).toFixed(3)})`;
+    }
+
+    const last = cardRefs.current[cardRefs.current.length - 1];
+    if (last) {
+      last.style.transform = "";
+      last.style.filter = "";
+    }
+  });
+
+  return (
+    <div className={className}>
+      {items.map((item, index) => (
+        <div
+          key={getKey(item)}
+          ref={(el) => {
+            cardRefs.current[index] = el;
+          }}
+          className="relative mb-8 will-change-transform md:sticky md:top-28"
+          style={{ zIndex: index + 1 }}
+        >
+          {renderItem(item, index)}
+        </div>
+      ))}
+    </div>
+  );
+}
+```
+
+- [ ] **Step 2: Retrofit the Work hub page**
+
+Replace the full contents of `app/work/page.tsx`:
+
+```tsx
+import type { Metadata } from "next";
+import Image from "next/image";
+import Link from "next/link";
+import { PageContainer } from "@/components/layout/page-container";
+import { GlassPanel } from "@/components/ui/glass-panel";
+import { Reveal } from "@/components/motion/reveal";
+import { StickyStack } from "@/components/motion/sticky-stack";
+import { caseStudies } from "@/lib/content/case-studies";
+
+export const metadata: Metadata = {
+  title: "Work — Case Studies | BELL Machine Works",
+  description:
+    "Real parts, real clients: ASML, Stoke Space, Corning, UCSF, Amazon Robotics, and nVent Data Solutions. Precision CNC machining case studies from BELL Machine Works, Gilroy, CA.",
+};
+
+export default function WorkPage() {
+  return (
+    <PageContainer className="flex flex-col gap-12">
+      <Reveal>
+        <div>
+          <h1 className="text-3xl font-semibold text-steel-100 md:text-4xl">Work</h1>
+          <p className="mt-4 max-w-2xl text-steel-200">
+            Named clients, real specs, real materials — one flagship case study per
+            industry BELL serves.
+          </p>
+        </div>
+      </Reveal>
+      <Reveal delay={80}>
+        <div className="relative h-64 overflow-hidden rounded-2xl md:h-80">
+          <Image
+            src="/images/stock/precision-metal-parts-tray.jpg"
+            alt=""
+            fill
+            sizes="(min-width: 1152px) 1120px, 100vw"
+            className="object-cover"
+          />
+        </div>
+      </Reveal>
+      <StickyStack
+        items={caseStudies}
+        getKey={(caseStudy) => caseStudy.slug}
+        renderItem={(caseStudy) => (
+          <Link
+            href={`/work/${caseStudy.slug}`}
+            className="block rounded-2xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-400 focus-visible:outline-offset-2"
+          >
+            <GlassPanel hoverLift={false} className="flex min-h-[60vh] flex-col justify-center p-10 md:p-16">
+              <p className="text-sm text-accent-400">{caseStudy.sector}</p>
+              <h2 className="mt-2 text-3xl font-semibold text-steel-100 md:text-4xl">
+                {caseStudy.client}
+              </h2>
+              <p className="mt-4 max-w-xl text-steel-200">{caseStudy.summary}</p>
+              <dl className="mt-8 grid gap-4 sm:grid-cols-3">
+                {caseStudy.specHighlights.map((spec) => (
+                  <div key={spec.label}>
+                    <dt className="text-xs uppercase tracking-wide text-steel-400">
+                      {spec.label}
+                    </dt>
+                    <dd className="mt-1 text-steel-100">{spec.value}</dd>
+                  </div>
+                ))}
+              </dl>
+            </GlassPanel>
+          </Link>
+        )}
+      />
+    </PageContainer>
+  );
+}
+```
+
+`CaseStudyCard` stays exactly as-is and stays in use on the home page's `ClientTeaserSection` — only the Work hub page gets the taller, deck-style presentation.
+
+- [ ] **Step 3: Verify the build**
+
+```bash
+./node_modules/.bin/next build
+```
+
+Expected: exits 0.
+
+- [ ] **Step 4: Verify the stack's climb-over behavior**
+
+```bash
+./node_modules/.bin/next start -p 3110 &
+sleep 2
+node scripts/scroll-check.mjs http://localhost:3110/work /tmp/scroll-check-task4 0 1200 2400 3600
+kill %1
+```
+
+Expected: exits 0. Compare the screenshots — later cards should visibly sit on top of earlier ones as scroll increases, and the card being climbed over should read smaller/dimmer than the one currently in front.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add components/motion/sticky-stack.tsx app/work/page.tsx
+git commit -m "$(cat <<'EOF'
+Add sticky stacked cards, retrofit on the Work hub's case studies
+
+Text-only deck (no imagery) using each case study's existing
+client/sector/summary/specHighlights fields — the reference site's
+[data-deck] pattern pairs an image with copy, but BELL has no
+per-case-study photography, and the Global Constraints forbid
+attaching stock photos to a specific named client's part. Cards climb
+over each other on scroll; the one beneath scales down and dims
+proportionally to the overlap.
+
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_014oH9o221g8kZmeMcjpyk3H
+EOF
+)"
+```
+
+### Task 5: Pill-tab crossfade "stage" switcher — new Industries hub spotlight
+
+**Files:**
+- Create: `components/motion/tab-stage.tsx`
+- Modify: `app/industries/page.tsx`
+
+**Interfaces:**
+- Consumes: `usePrefersReducedMotion` from `@/lib/motion/scroll-engine` (Task 1).
+- Produces: `TabStage<T>` generic component from `@/components/motion/tab-stage`, props `{ items: T[]; getKey: (item: T) => string; getLabel: (item: T) => string; renderSlide: (item: T) => ReactNode; autoAdvanceMs?: number; className?: string }`.
+- Design decision: the reference's tab/slide switcher is presentational (a product-feature showcase), not applied to scannable spec data. Converting the Capabilities page's Processes/Materials tables into one-at-a-time slides would reduce their scannability, which the Global Constraints' spec-table exclusion rule already forbids in spirit. This task instead adds a **new, additive** "Featured verticals" spotlight to the Industries hub, using each industry's existing `name`/`tagline` — the full industry grid stays exactly where it is, unchanged, immediately below, so nothing about the page's scannability or SEO regresses.
+
+- [ ] **Step 1: Write the TabStage primitive**
+
+Create `components/motion/tab-stage.tsx`:
+
+```tsx
+// components/motion/tab-stage.tsx
+"use client";
+
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { usePrefersReducedMotion } from "@/lib/motion/scroll-engine";
+
+interface TabStageProps<T> {
+  items: T[];
+  getKey: (item: T) => string;
+  getLabel: (item: T) => string;
+  renderSlide: (item: T) => ReactNode;
+  autoAdvanceMs?: number;
+  className?: string;
+}
+
+/** Pill tab bar + crossfading stage, auto-advancing on an interval and
+ *  advanceable by click; clicking resets the auto-advance timer. Mirrors
+ *  aiautomationsociety.ai's `[data-tab]`/`[data-slide]` feature switcher.
+ *  Auto-advance is disabled under prefers-reduced-motion — tabs still
+ *  switch on click. */
+export function TabStage<T>({
+  items,
+  getKey,
+  getLabel,
+  renderSlide,
+  autoAdvanceMs = 4500,
+  className = "",
+}: TabStageProps<T>) {
+  const [active, setActive] = useState(0);
+  const reducedMotion = usePrefersReducedMotion();
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    if (reducedMotion) return;
+    timerRef.current = setInterval(() => {
+      setActive((prev) => (prev + 1) % items.length);
+    }, autoAdvanceMs);
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, [reducedMotion, items.length, autoAdvanceMs]);
+
+  function selectTab(index: number) {
+    setActive(index);
+    if (timerRef.current) clearInterval(timerRef.current);
+    if (!reducedMotion) {
+      timerRef.current = setInterval(() => {
+        setActive((prev) => (prev + 1) % items.length);
+      }, autoAdvanceMs);
+    }
+  }
+
+  return (
+    <div className={className}>
+      <div
+        role="tablist"
+        className="grid gap-1 rounded-full border border-white/10 bg-graphite-900 p-1.5"
+        style={{ gridTemplateColumns: `repeat(${items.length}, 1fr)` }}
+      >
+        {items.map((item, index) => (
+          <button
+            key={getKey(item)}
+            type="button"
+            role="tab"
+            aria-selected={index === active}
+            onClick={() => selectTab(index)}
+            className={`h-11 rounded-full text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-400 focus-visible:outline-offset-2 ${
+              index === active
+                ? "bg-graphite-700 text-steel-100"
+                : "text-steel-200 hover:text-steel-100"
+            }`}
+          >
+            {getLabel(item)}
+          </button>
+        ))}
+      </div>
+      <div className="relative mt-3 min-h-[220px] overflow-hidden rounded-2xl border border-white/10 bg-graphite-900">
+        {items.map((item, index) => (
+          <div
+            key={getKey(item)}
+            role="tabpanel"
+            aria-hidden={index !== active}
+            className={`p-8 transition-all duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] md:p-12 ${
+              index === active
+                ? "relative opacity-100"
+                : "absolute inset-0 -z-10 translate-y-3 scale-[0.98] opacity-0"
+            }`}
+          >
+            {renderSlide(item)}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+```
+
+- [ ] **Step 2: Add the "Featured verticals" spotlight to the Industries hub**
+
+In `app/industries/page.tsx`, add `import { TabStage } from "@/components/motion/tab-stage";` and insert a new `<Reveal>`-wrapped `<TabStage>` between the banner image and the grid:
+
+```tsx
+import type { Metadata } from "next";
+import Image from "next/image";
+import Link from "next/link";
+import { PageContainer } from "@/components/layout/page-container";
+import { IndustryCard } from "@/components/industries/industry-card";
+import { Reveal } from "@/components/motion/reveal";
+import { TabStage } from "@/components/motion/tab-stage";
+import { industries } from "@/lib/content/industries";
+
+export const metadata: Metadata = {
+  title: "Industries — Precision CNC Machining by Vertical | BELL Machine Works",
+  description:
+    "Semiconductor equipment, aerospace, robotics, photonics, medical device, and specialty-applications machining — real tolerances, real materials, real clients. Gilroy, CA.",
+};
+
+export default function IndustriesPage() {
+  return (
+    <PageContainer className="flex flex-col gap-12">
+      <Reveal>
+        <div>
+          <h1 className="text-3xl font-semibold text-steel-100 md:text-4xl">Industries</h1>
+          <p className="mt-4 max-w-2xl text-steel-200">
+            Six verticals where BELL has real, shipped work — not a generic capability
+            claim for each.
+          </p>
+        </div>
+      </Reveal>
+      <Reveal delay={80}>
+        <div className="relative h-64 overflow-hidden rounded-2xl md:h-80">
+          <Image
+            src="/images/stock/cnc-lathe-turning-shaft-detail.jpg"
+            alt=""
+            fill
+            sizes="(min-width: 1152px) 1120px, 100vw"
+            className="object-cover"
+          />
+        </div>
+      </Reveal>
+      <Reveal delay={160}>
+        <TabStage
+          items={industries}
+          getKey={(industry) => industry.slug}
+          getLabel={(industry) => industry.name}
+          renderSlide={(industry) => (
+            <div>
+              <p className="text-sm text-accent-400">{industry.name}</p>
+              <p className="mt-3 max-w-xl text-xl text-steel-100 md:text-2xl">
+                {industry.tagline}
+              </p>
+              <Link
+                href={`/industries/${industry.slug}`}
+                className="mt-6 inline-block text-sm font-medium text-accent-400 underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-400 focus-visible:outline-offset-2"
+              >
+                See the {industry.name} page →
+              </Link>
+            </div>
+          )}
+        />
+      </Reveal>
+      <Reveal delay={240}>
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {industries.map((industry) => (
+            <IndustryCard key={industry.slug} industry={industry} />
+          ))}
+        </div>
+      </Reveal>
+    </PageContainer>
+  );
+}
+```
+
+- [ ] **Step 3: Verify the build**
+
+```bash
+./node_modules/.bin/next build
+```
+
+Expected: exits 0.
+
+- [ ] **Step 4: Verify the tab-stage renders and crossfades**
+
+```bash
+./node_modules/.bin/next start -p 3110 &
+sleep 2
+node scripts/scroll-check.mjs http://localhost:3110/industries /tmp/scroll-check-task5 600
+kill %1
+```
+
+Expected: exits 0. Open the screenshot and confirm the pill tab row and the first industry's tagline slide are both visible, with the full industry-card grid still present below, unchanged.
+
+Manual check in a browser (can't be curl/screenshot-verified): confirm clicking a different tab crossfades to that industry's tagline, and that the active tab auto-advances after ~4.5s if left alone.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add components/motion/tab-stage.tsx app/industries/page.tsx
+git commit -m "$(cat <<'EOF'
+Add pill-tab crossfade stage switcher as an Industries hub spotlight
+
+New "Featured verticals" TabStage above the existing industry grid,
+using each industry's existing name/tagline — no new copy. Auto-
+advances every 4.5s, click-selectable, crossfades via opacity/scale/
+translate. Deliberately not applied to the Capabilities page's
+Processes/Materials tables, since turning scannable spec data into a
+one-at-a-time slideshow would work against the Global Constraints'
+spec-table exclusion rule. The full industry grid stays unchanged
+immediately below, so scannability and SEO aren't affected.
+
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_014oH9o221g8kZmeMcjpyk3H
+EOF
+)"
+```
+
+### Task 6: Nav scroll-shadow and scroll-progress bar
+
+**Files:**
+- Create: `components/layout/scroll-progress.tsx`
+- Modify: `components/layout/nav.tsx`
+- Modify: `app/layout.tsx`
+
+**Interfaces:**
+- Consumes: `useScrollFrame` from `@/lib/motion/scroll-engine` (Task 1).
+- Produces: `ScrollProgress` component from `@/components/layout/scroll-progress`, no props.
+
+- [ ] **Step 1: Write the scroll-progress bar**
+
+Create `components/layout/scroll-progress.tsx`:
+
+```tsx
+// components/layout/scroll-progress.tsx
+"use client";
+
+import { useRef } from "react";
+import { useScrollFrame } from "@/lib/motion/scroll-engine";
+
+/** Thin glowing line along the top edge tracking scroll progress through
+ *  the page. Mirrors aiautomationsociety.ai's `.progress` bar. Holds at
+ *  0 width whenever the scroll engine's callback never fires
+ *  (prefers-reduced-motion) — an empty bar, not a broken one. */
+export function ScrollProgress() {
+  const barRef = useRef<HTMLDivElement>(null);
+
+  useScrollFrame((y) => {
+    const bar = barRef.current;
+    if (!bar) return;
+    const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+    const progress = docHeight > 0 ? Math.min(1, Math.max(0, y / docHeight)) : 0;
+    bar.style.transform = `scaleX(${progress.toFixed(4)})`;
+  });
+
+  return (
+    <div aria-hidden className="pointer-events-none fixed inset-x-0 top-0 z-[60] h-0.5">
+      <div
+        ref={barRef}
+        className="h-full origin-left bg-gradient-to-r from-accent-500 via-accent-400 to-white"
+        style={{ transform: "scaleX(0)" }}
+      />
+    </div>
+  );
+}
+```
+
+- [ ] **Step 2: Mount it in the root layout**
+
+In `app/layout.tsx`, add `import { ScrollProgress } from "@/components/layout/scroll-progress";` and render it as the first child inside `<ScrollEngineProvider>`, before `<BackgroundDepth />`:
+
+```tsx
+        <ScrollEngineProvider>
+          <ScrollProgress />
+          <BackgroundDepth />
+```
+
+- [ ] **Step 3: Add a scroll-shadow to the nav past a small threshold**
+
+In `components/layout/nav.tsx`, add `useState`/`useScrollFrame` imports and a `scrolled` state, then apply a conditional `drop-shadow` to the `<header>` wrapper (not to `GlassPanel` itself, since `GlassPanel` hardcodes its own `boxShadow` after spreading any caller-provided `style`, so a caller-side override on that component wouldn't reliably win):
+
+```tsx
+// components/layout/nav.tsx
+"use client";
+
+import { useState } from "react";
+import Link from "next/link";
+import { GlassPanel } from "@/components/ui/glass-panel";
+import { Container } from "@/components/layout/container";
+import { useScrollFrame } from "@/lib/motion/scroll-engine";
+```
+
+Replace:
+
+```tsx
+export function Nav() {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <header className="sticky top-4 z-50">
+```
+
+with:
+
+```tsx
+export function Nav() {
+  const [open, setOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+
+  useScrollFrame((y) => {
+    setScrolled((prev) => (prev !== y > 40 ? y > 40 : prev));
+  });
+
+  return (
+    <header
+      className={`sticky top-4 z-50 transition-[filter] duration-300 ${
+        scrolled ? "drop-shadow-[0_12px_30px_rgba(0,0,0,0.5)]" : ""
+      }`}
+    >
+```
+
+- [ ] **Step 4: Verify the build**
+
+```bash
+./node_modules/.bin/next build
+```
+
+Expected: exits 0.
+
+- [ ] **Step 5: Verify the progress bar and nav shadow respond to scroll**
+
+```bash
+./node_modules/.bin/next start -p 3110 &
+sleep 2
+node scripts/scroll-check.mjs http://localhost:3110/ /tmp/scroll-check-task6 0 100 2000
+kill %1
+```
+
+Expected: exits 0. Compare the three screenshots — the top progress line should be near-empty at `scroll-0`, partially filled at `scroll-100`, and mostly/fully filled at `scroll-2000`; the nav should show a visible drop-shadow starting at `scroll-100` (past the 40px threshold) that isn't present at `scroll-0`.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add components/layout/scroll-progress.tsx components/layout/nav.tsx app/layout.tsx
+git commit -m "$(cat <<'EOF'
+Add scroll-progress bar and nav scroll-shadow
+
+Small closing polish pieces for the motion system: a thin glowing bar
+tracking scroll progress along the top edge, and a drop-shadow on the
+nav's outer wrapper past a 40px scroll threshold — applied to the
+header, not GlassPanel itself, since GlassPanel hardcodes its own
+boxShadow after spreading caller style and won't take an override.
+
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_014oH9o221g8kZmeMcjpyk3H
+EOF
+)"
+```
+
+---
+
+## Phase 5 — RFQ form + file upload backend (plan in detail at phase start)
+
+Structured form (material, quantity, timeline, cert requirement, file input) per spec §4, a Next.js server action streaming the upload to Vercel Blob, a Resend email to Bushra with submission details and a file link, accepted-type validation (STEP/IGES/Parasolid/STL/PDF/DWG/DXF), and a visible turnaround-SLA statement at the point of submission. Form surface stays solid per the glass exclusion list. Built on top of Phase 4's motion system (`<Reveal>` on the form's framing sections), never inside a continuous scroll-linked effect (dimming/scale) per that phase's own exclusion rule.
 
 Still unassigned as of Phase 3's close, carry into this phase's own planning: the `/capabilities/5-axis-milling` process page and the four `/capabilities/materials/*` pages that Phase 2 Task 7 already links to from the Capabilities hub. No phase before this one owns building them.
 
-## Phase 5 — About/Team + Quality & Certifications + Contact (plan in detail at phase start)
+## Phase 6 — About/Team + Quality & Certifications + Contact (plan in detail at phase start)
 
 About/Team page with Bushra's story and any additional named staff (placeholder content where bios/photos aren't yet supplied — flagged, not faked). Quality & Certifications page implementing the Pillar 2 roadmap framing (dated cert status paired with existing quality rigor) and a Sample Quality Documentation section. Contact page. All spec/cert content on solid backgrounds per the glass exclusion list.
 
-## Phase 6 — Polish pass (plan in detail at phase start)
+## Phase 7 — Polish pass (plan in detail at phase start)
 
-Motion/animation review against the `animate`/`review-animations`/`improve-animations` skills, responsive QA across breakpoints, SEO/schema markup (Person schema for team, capability schema for pages), removal of any stray Squarespace-era references, and a final full click-through of every route in-browser.
+Responsive QA across breakpoints (including the Phase 4 motion primitives' mobile fallbacks), SEO/schema markup (Person schema for team, capability schema for pages), removal of any stray Squarespace-era references, and a final full click-through of every route in-browser. Motion/animation review against the `animate`/`review-animations`/`improve-animations` skills is scoped to a final sweep here — the motion *system* itself is built and reviewed in Phase 4, not deferred to this pass.
