@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import { PageContainer } from "@/components/layout/page-container";
-import { CaseStudyCard } from "@/components/work/case-study-card";
 import { Reveal } from "@/components/motion/reveal";
+import { CaseStudyDeck } from "@/components/work/case-study-deck";
 import { caseStudies } from "@/lib/content/case-studies";
 
 export const metadata: Metadata = {
@@ -34,11 +34,7 @@ export default function WorkPage() {
           />
         </div>
       </Reveal>
-      <div className="grid gap-6 md:grid-cols-2">
-        {caseStudies.map((caseStudy) => (
-          <CaseStudyCard key={caseStudy.slug} caseStudy={caseStudy} />
-        ))}
-      </div>
+      <CaseStudyDeck caseStudies={caseStudies} />
     </PageContainer>
   );
 }
