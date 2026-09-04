@@ -6,19 +6,3 @@ export const heroContent = {
   ctaLabel: "Get a Quote",
   ctaHref: "/quote",
 };
-
-export const certRoadmapContent = {
-  heading: "Certification roadmap",
-  status: "AS9100D and ITAR registration are actively in progress.",
-  proofPoints: [
-    {
-      label: "Traceability",
-      body: "Full material traceability with mill test reports (MTRs) on every job",
-    },
-    { label: "FAI", body: "First-article inspection per AS9102" },
-    { label: "GD&T", body: "Digital GD&T verification" },
-    { label: "Documentation", body: "Complete process and setup documentation" },
-  ],
-  ctaLabel: "See our quality process",
-  ctaHref: "/quality",
-};
