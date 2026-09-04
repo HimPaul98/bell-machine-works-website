@@ -32,7 +32,10 @@ page.on("console", (msg) => {
 });
 
 await page.setViewport({ width: 1440, height: 900 });
-await page.goto(url, { waitUntil: "networkidle0" });
+await page.goto(url, { waitUntil: "load" });
+// Lenis loads via a dynamic import() inside ScrollEngineProvider's effect;
+// give it a beat to resolve before checking whether it booted.
+await new Promise((resolve) => setTimeout(resolve, 500));
 
 const hasScrollEngine = await page.evaluate(() => typeof window.__scrollEngine !== "undefined");
 console.log("scrollEngine present:", hasScrollEngine);
