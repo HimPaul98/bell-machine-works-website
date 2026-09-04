@@ -29,6 +29,7 @@ export function CaseStudyDeck({ caseStudies }: { caseStudies: CaseStudySummary[]
           >
             <GlassPanel
               elevated
+              glowColor={caseStudy.glowColor}
               hoverLift={false}
               className="grid gap-3 p-3 md:min-h-[60vh] md:grid-cols-2 md:gap-4 md:p-4"
             >

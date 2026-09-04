@@ -10,6 +10,9 @@ export interface CaseStudySummary {
   specHighlights: { label: string; value: string }[];
   tier: "A" | "B" | "C";
   image: string;
+  /** RGB triplet ("R G B", 0-255) sampled from the image's dominant tone,
+   *  used to tint the card's elevated glow to match the photo inside. */
+  glowColor: string;
 }
 
 export const caseStudies: CaseStudySummary[] = [
@@ -30,6 +33,7 @@ export const caseStudies: CaseStudySummary[] = [
     ],
     tier: "A",
     image: "/images/stock/precision-machined-aluminum-block.jpg",
+    glowColor: "203 213 225",
   },
   {
     slug: "stoke-space",
@@ -48,6 +52,7 @@ export const caseStudies: CaseStudySummary[] = [
     ],
     tier: "A",
     image: "/images/stock/cnc-5-axis-mill-head-coolant.jpg",
+    glowColor: "59 130 246",
   },
   {
     slug: "corning",
@@ -66,6 +71,7 @@ export const caseStudies: CaseStudySummary[] = [
     ],
     tier: "A",
     image: "/images/stock/precision-drill-tip-macro.jpg",
+    glowColor: "100 116 139",
   },
   {
     slug: "ucsf",
@@ -84,6 +90,7 @@ export const caseStudies: CaseStudySummary[] = [
     ],
     tier: "A",
     image: "/images/stock/cnc-lathe-shaft-closeup.jpg",
+    glowColor: "191 156 96",
   },
   {
     slug: "amazon-robotics",
@@ -102,6 +109,7 @@ export const caseStudies: CaseStudySummary[] = [
     ],
     tier: "A",
     image: "/images/stock/milling-cutters-metal-shavings.jpg",
+    glowColor: "129 140 248",
   },
   {
     slug: "nvent",
@@ -120,5 +128,6 @@ export const caseStudies: CaseStudySummary[] = [
     ],
     tier: "A",
     image: "/images/stock/lathe-turning-metal-macro.jpg",
+    glowColor: "234 88 12",
   },
 ];

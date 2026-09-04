@@ -12,6 +12,9 @@ interface GlassPanelProps {
    *  surfaces (e.g. the Work-page case-study cards) that need to visibly
    *  lift off the page rather than just outline it. */
   elevated?: boolean;
+  /** RGB triplet ("R G B", 0-255) tinting the elevated glow to match an
+   *  embedded photo's tone. Ignored unless `elevated` is set. */
+  glowColor?: string;
   [key: string]: unknown;
 }
 
@@ -26,6 +29,7 @@ export function GlassPanel({
   as: Component = "div",
   hoverLift = true,
   elevated = false,
+  glowColor,
   ...rest
 }: GlassPanelProps) {
   return (
@@ -38,7 +42,11 @@ export function GlassPanel({
       {...rest}
       style={{
         ...(rest.style as CSSProperties | undefined),
-        boxShadow: elevated ? "var(--glass-shadow-elevated)" : "var(--glass-shadow)",
+        boxShadow: elevated
+          ? glowColor
+            ? `0 32px 80px rgb(${glowColor} / 0.35), var(--glass-shadow-elevated)`
+            : "var(--glass-shadow-elevated)"
+          : "var(--glass-shadow)",
       }}
     >
       <span
