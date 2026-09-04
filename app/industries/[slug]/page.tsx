@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PageContainer } from "@/components/layout/page-container";
@@ -37,12 +38,27 @@ export default async function IndustryDetailPage({
 
   return (
     <PageContainer className="flex flex-col gap-12">
-      <div>
-        <p className="text-sm text-accent-400">Industries</p>
-        <h1 className="mt-1 text-3xl font-semibold text-steel-100 md:text-4xl">
-          {industry.name}
-        </h1>
-        <p className="mt-4 max-w-2xl text-lg text-steel-200">{industry.tagline}</p>
+      <div className="relative overflow-hidden rounded-2xl">
+        <div className="relative h-[320px] md:h-[400px]">
+          <Image
+            src={industry.image}
+            alt=""
+            fill
+            priority
+            sizes="(min-width: 1152px) 1120px, 100vw"
+            className="object-cover"
+          />
+          <div className="absolute inset-0 bg-graphite-900/78" aria-hidden />
+        </div>
+        <div className="absolute inset-0 flex items-center p-4 md:p-10">
+          <GlassPanel hoverLift={false} className="p-8 md:p-12">
+            <p className="text-sm text-accent-400">Industries</p>
+            <h1 className="mt-1 text-3xl font-semibold text-steel-100 md:text-4xl">
+              {industry.name}
+            </h1>
+            <p className="mt-4 max-w-2xl text-lg text-steel-200">{industry.tagline}</p>
+          </GlassPanel>
+        </div>
       </div>
 
       <section className="rounded-2xl border border-white/10 bg-graphite-900 p-8 md:p-12">
