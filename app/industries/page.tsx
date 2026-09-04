@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import { PageContainer } from "@/components/layout/page-container";
 import { IndustryCard } from "@/components/industries/industry-card";
+import { IndustriesTabStage } from "@/components/industries/industries-tab-stage";
 import { Reveal } from "@/components/motion/reveal";
 import { industries } from "@/lib/content/industries";
 
@@ -35,6 +36,16 @@ export default function IndustriesPage() {
         </div>
       </Reveal>
       <Reveal delay={160}>
+        <div>
+          <h2 className="text-xl font-semibold text-steel-100 md:text-2xl">
+            Featured verticals
+          </h2>
+          <div className="mt-4">
+            <IndustriesTabStage industries={industries} />
+          </div>
+        </div>
+      </Reveal>
+      <Reveal delay={240}>
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {industries.map((industry) => (
             <IndustryCard key={industry.slug} industry={industry} />
