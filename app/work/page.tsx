@@ -24,13 +24,17 @@ export default function WorkPage() {
         </div>
       </Reveal>
       <Reveal delay={80}>
-        <div className="relative h-64 overflow-hidden rounded-2xl md:h-80">
+        <div className="relative h-72 overflow-hidden rounded-2xl md:h-96">
           <Image
             src="/images/stock/precision-metal-parts-tray.jpg"
             alt=""
             fill
             sizes="(min-width: 1152px) 1120px, 100vw"
             className="object-cover"
+          />
+          <div
+            className="absolute inset-0 bg-gradient-to-t from-graphite-950/40 to-transparent"
+            aria-hidden
           />
         </div>
       </Reveal>
