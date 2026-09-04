@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import { PageContainer } from "@/components/layout/page-container";
 import { IndustryCard } from "@/components/industries/industry-card";
+import { Reveal } from "@/components/motion/reveal";
 import { industries } from "@/lib/content/industries";
 
 export const metadata: Metadata = {
@@ -13,27 +14,33 @@ export const metadata: Metadata = {
 export default function IndustriesPage() {
   return (
     <PageContainer className="flex flex-col gap-12">
-      <div>
-        <h1 className="text-3xl font-semibold text-steel-100 md:text-4xl">Industries</h1>
-        <p className="mt-4 max-w-2xl text-steel-200">
-          Six verticals where BELL has real, shipped work — not a generic capability
-          claim for each.
-        </p>
-      </div>
-      <div className="relative h-64 overflow-hidden rounded-2xl md:h-80">
-        <Image
-          src="/images/stock/cnc-lathe-turning-shaft-detail.jpg"
-          alt=""
-          fill
-          sizes="(min-width: 1152px) 1120px, 100vw"
-          className="object-cover"
-        />
-      </div>
-      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        {industries.map((industry) => (
-          <IndustryCard key={industry.slug} industry={industry} />
-        ))}
-      </div>
+      <Reveal>
+        <div>
+          <h1 className="text-3xl font-semibold text-steel-100 md:text-4xl">Industries</h1>
+          <p className="mt-4 max-w-2xl text-steel-200">
+            Six verticals where BELL has real, shipped work — not a generic capability
+            claim for each.
+          </p>
+        </div>
+      </Reveal>
+      <Reveal delay={80}>
+        <div className="relative h-64 overflow-hidden rounded-2xl md:h-80">
+          <Image
+            src="/images/stock/cnc-lathe-turning-shaft-detail.jpg"
+            alt=""
+            fill
+            sizes="(min-width: 1152px) 1120px, 100vw"
+            className="object-cover"
+          />
+        </div>
+      </Reveal>
+      <Reveal delay={160}>
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {industries.map((industry) => (
+            <IndustryCard key={industry.slug} industry={industry} />
+          ))}
+        </div>
+      </Reveal>
     </PageContainer>
   );
 }

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import { PageContainer } from "@/components/layout/page-container";
 import { CaseStudyCard } from "@/components/work/case-study-card";
+import { Reveal } from "@/components/motion/reveal";
 import { caseStudies } from "@/lib/content/case-studies";
 
 export const metadata: Metadata = {
@@ -13,22 +14,26 @@ export const metadata: Metadata = {
 export default function WorkPage() {
   return (
     <PageContainer className="flex flex-col gap-12">
-      <div>
-        <h1 className="text-3xl font-semibold text-steel-100 md:text-4xl">Work</h1>
-        <p className="mt-4 max-w-2xl text-steel-200">
-          Named clients, real specs, real materials — one flagship case study per
-          industry BELL serves.
-        </p>
-      </div>
-      <div className="relative h-64 overflow-hidden rounded-2xl md:h-80">
-        <Image
-          src="/images/stock/precision-metal-parts-tray.jpg"
-          alt=""
-          fill
-          sizes="(min-width: 1152px) 1120px, 100vw"
-          className="object-cover"
-        />
-      </div>
+      <Reveal>
+        <div>
+          <h1 className="text-3xl font-semibold text-steel-100 md:text-4xl">Work</h1>
+          <p className="mt-4 max-w-2xl text-steel-200">
+            Named clients, real specs, real materials — one flagship case study per
+            industry BELL serves.
+          </p>
+        </div>
+      </Reveal>
+      <Reveal delay={80}>
+        <div className="relative h-64 overflow-hidden rounded-2xl md:h-80">
+          <Image
+            src="/images/stock/precision-metal-parts-tray.jpg"
+            alt=""
+            fill
+            sizes="(min-width: 1152px) 1120px, 100vw"
+            className="object-cover"
+          />
+        </div>
+      </Reveal>
       <div className="grid gap-6 md:grid-cols-2">
         {caseStudies.map((caseStudy) => (
           <CaseStudyCard key={caseStudy.slug} caseStudy={caseStudy} />
