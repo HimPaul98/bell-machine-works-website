@@ -3,6 +3,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { GlassPanel } from "@/components/ui/glass-panel";
 import { Container } from "@/components/layout/container";
 import { useScrollFrame } from "@/lib/motion/scroll-engine";
@@ -41,11 +42,15 @@ export function Nav() {
           className="flex flex-col px-6 py-4"
         >
           <div className="flex items-center justify-between">
-            <Link
-              href="/"
-              className={`rounded-sm font-sans text-lg font-semibold text-steel-100 ${FOCUS_RING}`}
-            >
-              BELL Machine Works
+            <Link href="/" className={`rounded-sm ${FOCUS_RING}`} aria-label="BELL Machine Works — home">
+              <Image
+                src="/images/brand/bell-logo-white.png"
+                alt="BELL Machine Works"
+                width={720}
+                height={240}
+                priority
+                className="h-8 w-auto md:h-9"
+              />
             </Link>
             <ul className="hidden items-center gap-6 md:flex">
               {LINKS.map((link) => (
