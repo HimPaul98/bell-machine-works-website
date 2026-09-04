@@ -44,7 +44,7 @@ export function GlassPanel({
         ...(rest.style as CSSProperties | undefined),
         boxShadow: elevated
           ? glowColor
-            ? `0 32px 80px rgb(${glowColor} / 0.35), var(--glass-shadow-elevated)`
+            ? `0 32px 80px rgb(${glowColor} / 0.2), var(--glass-shadow-elevated)`
             : "var(--glass-shadow-elevated)"
           : "var(--glass-shadow)",
       }}
