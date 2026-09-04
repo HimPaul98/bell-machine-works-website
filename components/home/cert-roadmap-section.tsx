@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Reveal } from "@/components/motion/reveal";
+import { EyeLevelParagraph } from "@/components/motion/eye-level-paragraph";
 import { certRoadmapContent } from "@/lib/content/home";
 
 export function CertRoadmapSection() {
@@ -10,19 +11,19 @@ export function CertRoadmapSection() {
           {certRoadmapContent.heading}
         </h2>
         <p className="mt-3 max-w-2xl text-steel-200">{certRoadmapContent.status}</p>
-        <ul className="mt-6 grid gap-3 text-sm text-steel-200 md:grid-cols-2">
+        <div className="mt-10 flex flex-col gap-6">
           {certRoadmapContent.proofPoints.map((point) => (
-            <li key={point} className="flex gap-2">
-              <span aria-hidden className="text-accent-400">
-                &middot;
-              </span>
+            <EyeLevelParagraph
+              key={point}
+              className="max-w-2xl text-xl font-medium text-steel-100 md:text-2xl"
+            >
               {point}
-            </li>
+            </EyeLevelParagraph>
           ))}
-        </ul>
+        </div>
         <Link
           href={certRoadmapContent.ctaHref}
-          className="mt-6 inline-block text-sm font-medium text-accent-400 underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-400 focus-visible:outline-offset-2"
+          className="mt-8 inline-block text-sm font-medium text-accent-400 underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-400 focus-visible:outline-offset-2"
         >
           {certRoadmapContent.ctaLabel} →
         </Link>
