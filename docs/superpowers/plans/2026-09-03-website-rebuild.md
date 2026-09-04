@@ -4103,11 +4103,928 @@ EOF
 
 ---
 
-## Phase 5 — RFQ form + file upload backend (plan in detail at phase start)
+## Phase 5 — RFQ form + file upload backend (detailed below, build now)
 
-Structured form (material, quantity, timeline, cert requirement, file input) per spec §4, a Next.js server action streaming the upload to Vercel Blob, a Resend email to Bushra with submission details and a file link, accepted-type validation (STEP/IGES/Parasolid/STL/PDF/DWG/DXF), and a visible turnaround-SLA statement at the point of submission. Form surface stays solid per the glass exclusion list. Built on top of Phase 4's motion system (`<Reveal>` on the form's framing sections), never inside a continuous scroll-linked effect (dimming/scale) per that phase's own exclusion rule.
+Structured RFQ form (name, email, company, material, quantity, timeline, cert requirement, notes, file input) per spec §4, submitted through a Next.js Server Action that validates every field and the attached file with `zod`. **Delivery is deferred** (see the ruling immediately below): the spec's original design has the action stream the file to Vercel Blob and send Bushra a Resend email with a link to it, but hosting is not yet decided, so this phase builds and validates the form completely without wiring either vendor — a follow-up task fills in delivery once storage is chosen. Accepted file types are STEP, IGES, Parasolid, STL, PDF, DWG, DXF, enforced both by the file picker's `accept` attribute and server-side by extension. A visible turnaround-SLA statement sits at the top of the form (spec §4, Pillar 6). The form surface itself stays solid/opaque — no `GlassPanel` — per the glass exclusion list; it's wrapped in one-time `<Reveal>` entrances only, never a continuous scroll-linked effect, per Phase 4's own exclusion rule. This phase also closes out the five capability pages left unassigned since Phase 3's close: `/capabilities/5-axis-milling` and the four `/capabilities/materials/*` pages already linked from the Capabilities hub table.
 
-Still unassigned as of Phase 3's close, carry into this phase's own planning: the `/capabilities/5-axis-milling` process page and the four `/capabilities/materials/*` pages that Phase 2 Task 7 already links to from the Capabilities hub. No phase before this one owns building them.
+**Ruling (2026-09-04) — Vercel Blob/Resend delivery deferred:** the spec's §1 storage/email choice (Vercel Blob, Resend) was made when this site's hosting was assumed to be Vercel. Hosting is no longer decided as of this phase's kickoff — the user confirmed deployment platform is an open question to be settled later — so provisioning a Vercel Blob store now would wire storage to a hosting platform that may not be the final choice. Per the user's explicit decision, this phase builds the RFQ form, its validation, and its page completely (real, working UI and server-side validation), but defers the actual delivery mechanism (streaming the file somewhere durable + emailing Bushra) until hosting/storage is chosen. Task 1 installs only `zod` (vendor-agnostic) and raises the Server Action body-size limit (a Next.js-level setting, not tied to any vendor). Task 3 (Resend email) is marked deferred, not built this pass. Task 4's server action performs full real validation and returns an honest "submission isn't live yet" state rather than a fabricated success — no vendor SDK is imported. Cost if this ruling is wrong: low — Tasks 3 and 4's delivery step are additive; when hosting/storage is decided, a follow-up task fills in `sendQuoteNotification` and the actual upload call without touching the validation/UI layer built here.
+
+**Form field types are new to this codebase** — no prior page has form inputs. `FIELD_STYLE` / `LABEL_STYLE` / `ERROR_STYLE` constants introduced in Task 5 (`components/quote/quote-form.tsx`) are this phase's equivalent of the `LINK_STYLE` constant already established in `app/capabilities/page.tsx` — reuse them rather than inventing new ad hoc classes if a later phase adds another form.
+
+### Task 1: Dependency install and Server Action body-size config
+
+**Files:**
+- Modify: `package.json`
+- Modify: `next.config.ts`
+
+**Interfaces:**
+- Produces: installed `zod` package; `next.config.ts`'s Server Actions body-size limit raised from Next's 1MB default to accommodate CAD file uploads reaching the validation layer. Task 2 imports `zod`; Task 4's server action relies on the raised body limit to receive large files at all (even though it does not yet upload them anywhere — see the phase-level ruling above).
+
+- [ ] **Step 1: Install zod**
+
+```bash
+npm install zod
+```
+
+- [ ] **Step 2: Raise the Server Actions body-size limit**
+
+CAD files (STEP/IGES/Parasolid) can run tens of megabytes; Next's default 1MB Server Action body cap would reject them. In `next.config.ts`, replace:
+
+```ts
+import type { NextConfig } from "next";
+
+const nextConfig: NextConfig = {
+  /* config options here */
+};
+
+export default nextConfig;
+```
+
+with:
+
+```ts
+import type { NextConfig } from "next";
+
+const nextConfig: NextConfig = {
+  experimental: {
+    serverActions: {
+      // CAD drawing/model uploads (STEP/IGES/Parasolid) run well past
+      // Next's 1MB Server Action default — spec §4's RFQ file upload.
+      bodySizeLimit: "50mb",
+    },
+  },
+};
+
+export default nextConfig;
+```
+
+- [ ] **Step 3: Verify and commit**
+
+```bash
+./node_modules/.bin/next build
+git add package.json package-lock.json next.config.ts
+git commit -m "$(cat <<'EOF'
+Install zod and raise Server Action body limit for RFQ uploads
+
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_014oH9o221g8kZmeMcjpyk3H
+EOF
+)"
+```
+
+### Task 2: Quote content + validation schema
+
+**Files:**
+- Create: `lib/content/quote.ts`
+- Create: `lib/quote/validation.ts`
+
+**Interfaces:**
+- Produces (from `@/lib/content/quote`): `quoteContent` object with `slaStatement: string`, `materials: string[]`, `timelines: string[]`, `certRequirements: string[]`, `acceptedFileExtensions: string[]`, `acceptedFileLabel: string`, `maxFileSizeLabel: string`.
+- Produces (from `@/lib/quote/validation`): `quoteFormSchema` (zod object), `QuoteFormValues` (`z.infer<typeof quoteFormSchema>`), `MAX_FILE_SIZE_BYTES: number`, `isAcceptedFileType(filename: string): boolean`.
+- Consumed by Task 4's server action, Task 5's form component.
+
+- [ ] **Step 1: Write the quote content**
+
+Create `lib/content/quote.ts`. Materials/timelines/cert options are drawn from the material families and lead-time facts already established in `lib/content/industries.ts` and `lib/content/capabilities.ts` — no new claims invented:
+
+```ts
+export const quoteContent = {
+  slaStatement:
+    "Most quotes go out within hours — no minimum order, from single prototypes to 1,000+ unit runs.",
+  materials: [
+    "Titanium Grade 5",
+    "Inconel 625",
+    "Inconel 718",
+    "Stainless Steel 303",
+    "Aluminum 6061-T6",
+    "Aluminum 7075",
+    "Aluminum 2024",
+    "Copper C110",
+    "PEEK",
+    "Delrin",
+    "PTFE",
+    "UHMW PE",
+    "Polycarbonate",
+    "Other (specify in notes)",
+  ],
+  timelines: ["Standard", "Rush / expedited", "Flexible — no rush"],
+  certRequirements: [
+    "None required",
+    "Material certification (mill cert)",
+    "CMM inspection report",
+    "First Article Inspection (FAI)",
+    "Other (specify in notes)",
+  ],
+  acceptedFileExtensions: [
+    ".step",
+    ".stp",
+    ".iges",
+    ".igs",
+    ".x_t",
+    ".x_b",
+    ".stl",
+    ".pdf",
+    ".dwg",
+    ".dxf",
+  ],
+  acceptedFileLabel: "STEP, IGES, Parasolid, STL, PDF, DWG, DXF",
+  maxFileSizeLabel: "50MB",
+};
+```
+
+- [ ] **Step 2: Write the validation schema**
+
+Create `lib/quote/validation.ts`:
+
+```ts
+import { z } from "zod";
+
+export const ACCEPTED_FILE_EXTENSIONS = [
+  ".step",
+  ".stp",
+  ".iges",
+  ".igs",
+  ".x_t",
+  ".x_b",
+  ".stl",
+  ".pdf",
+  ".dwg",
+  ".dxf",
+];
+
+export const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024;
+
+export function isAcceptedFileType(filename: string): boolean {
+  const lower = filename.toLowerCase();
+  return ACCEPTED_FILE_EXTENSIONS.some((ext) => lower.endsWith(ext));
+}
+
+export const quoteFormSchema = z.object({
+  name: z.string().trim().min(1, "Name is required."),
+  email: z.string().trim().email("Enter a valid email address."),
+  company: z.string().trim().optional(),
+  material: z.string().trim().min(1, "Select a material."),
+  quantity: z.coerce.number().int().min(1, "Quantity must be at least 1."),
+  timeline: z.string().trim().min(1, "Select a timeline."),
+  certRequirement: z.string().trim().min(1, "Select a certification requirement."),
+  notes: z.string().trim().optional(),
+});
+
+export type QuoteFormValues = z.infer<typeof quoteFormSchema>;
+```
+
+Note: keep `ACCEPTED_FILE_EXTENSIONS` in `lib/quote/validation.ts` (the server-side source of truth used by the action's file check) and `quoteContent.acceptedFileExtensions` in `lib/content/quote.ts` (used for the file input's `accept` attribute and the human-readable label) as two separately-maintained lists with identical values — `lib/content/*.ts` never imports from `lib/quote/*.ts` elsewhere in this codebase's conventions, so this mirrors that boundary rather than introducing a new cross-import. If the accepted-type list ever changes, update both.
+
+- [ ] **Step 3: Verify and commit**
+
+```bash
+./node_modules/.bin/next build
+git add lib/content/quote.ts lib/quote/validation.ts
+git commit -m "$(cat <<'EOF'
+Add RFQ form content and validation schema
+
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_014oH9o221g8kZmeMcjpyk3H
+EOF
+)"
+```
+
+### Task 3: Resend email notification — DEFERRED, not built this pass
+
+**Status:** not dispatched. Per the phase-level ruling above, storage/hosting is undecided, so wiring a real Resend account/API key now would be premature. This task's shape is recorded here so a future phase can implement it without re-deriving the interface:
+
+- Would create `lib/quote/email.ts`, consuming `QuoteFormValues` from `@/lib/quote/validation` (Task 2).
+- Would produce `sendQuoteNotification(values: QuoteFormValues, fileUrl: string, fileName: string): Promise<void>`, using the `resend` package (`new Resend(process.env.RESEND_API_KEY)`, `resend.emails.send({...})`) to notify Bushra with submission details plus a link to wherever the file ends up stored.
+- Follow-up work when hosting/storage is decided: install `resend`, provision a real API key + sending identity, write this module, then update Task 4's `submitQuoteRequest` (below) to call it after a real upload step and change the `"unavailable"` return branch to a real `"success"` branch.
+
+### Task 4: Server Action — validate the RFQ submission (delivery deferred)
+
+**Files:**
+- Create: `app/quote/actions.ts`
+
+**Interfaces:**
+- Consumes: `quoteFormSchema`, `MAX_FILE_SIZE_BYTES`, `isAcceptedFileType` from `@/lib/quote/validation` (Task 2).
+- Produces: `QuoteFormState` interface (`status: "idle" | "success" | "error" | "unavailable"`, `errors: Record<string, string[]>`, `message: string`) and `submitQuoteRequest(prevState: QuoteFormState, formData: FormData): Promise<QuoteFormState>`, both exported from `@/app/quote/actions`. Consumed by Task 5's `useActionState` call. `"success"` is defined but not reachable yet — it activates once Task 3's real delivery is wired in; today every validated submission resolves to `"unavailable"`, which Task 5 renders as an honest "not live yet" notice rather than a fabricated confirmation.
+
+- [ ] **Step 1: Write the server action**
+
+Create `app/quote/actions.ts`. No vendor SDK is imported — this task validates every field and the file for real, then stops short of actually delivering the submission anywhere, since no storage/email backend is provisioned yet:
+
+```ts
+"use server";
+
+import { quoteFormSchema, MAX_FILE_SIZE_BYTES, isAcceptedFileType } from "@/lib/quote/validation";
+
+export interface QuoteFormState {
+  status: "idle" | "success" | "error" | "unavailable";
+  errors: Record<string, string[]>;
+  message: string;
+}
+
+export async function submitQuoteRequest(
+  _prevState: QuoteFormState,
+  formData: FormData,
+): Promise<QuoteFormState> {
+  const parsed = quoteFormSchema.safeParse({
+    name: formData.get("name"),
+    email: formData.get("email"),
+    company: formData.get("company"),
+    material: formData.get("material"),
+    quantity: formData.get("quantity"),
+    timeline: formData.get("timeline"),
+    certRequirement: formData.get("certRequirement"),
+    notes: formData.get("notes"),
+  });
+
+  if (!parsed.success) {
+    return {
+      status: "error",
+      errors: parsed.error.flatten().fieldErrors as Record<string, string[]>,
+      message: "Please fix the highlighted fields and try again.",
+    };
+  }
+
+  const file = formData.get("file");
+
+  if (!(file instanceof File) || file.size === 0) {
+    return {
+      status: "error",
+      errors: { file: ["A drawing or model file is required."] },
+      message: "Please attach a drawing or model file.",
+    };
+  }
+
+  if (!isAcceptedFileType(file.name)) {
+    return {
+      status: "error",
+      errors: {
+        file: ["Unsupported file type. Accepted: STEP, IGES, Parasolid, STL, PDF, DWG, DXF."],
+      },
+      message: "Please attach a supported file type.",
+    };
+  }
+
+  if (file.size > MAX_FILE_SIZE_BYTES) {
+    return {
+      status: "error",
+      errors: { file: ["File is too large. Max 50MB."] },
+      message: "Please attach a smaller file.",
+    };
+  }
+
+  // Delivery (file upload + Resend notification) is deferred until hosting
+  // and a storage provider are decided — see Task 3 and the phase-level
+  // ruling above. The submission is fully validated but not yet sent
+  // anywhere; return an honest "not live yet" state instead of a fake
+  // success.
+  return {
+    status: "unavailable",
+    errors: {},
+    message:
+      "Your request looks good, but online submission isn't live yet — we're finishing this feature. Please check back soon.",
+  };
+}
+```
+
+- [ ] **Step 2: Verify and commit**
+
+```bash
+./node_modules/.bin/next build
+git add app/quote/actions.ts
+git commit -m "$(cat <<'EOF'
+Add RFQ server action with full field/file validation (delivery deferred)
+
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_014oH9o221g8kZmeMcjpyk3H
+EOF
+)"
+```
+
+### Task 5: Quote form component
+
+**Files:**
+- Create: `components/quote/quote-form.tsx`
+
+**Interfaces:**
+- Consumes: `submitQuoteRequest`, `QuoteFormState` from `@/app/quote/actions` (Task 4); `quoteContent` from `@/lib/content/quote` (Task 2).
+- Produces: `QuoteForm` component, exported from `@/components/quote/quote-form`. Consumed by Task 6's page.
+
+- [ ] **Step 1: Write the form component**
+
+Create `components/quote/quote-form.tsx`. Solid surface (`bg-graphite-900` + hairline border, matching every other spec-table panel on the site) — no `GlassPanel`, per the glass exclusion list:
+
+```tsx
+"use client";
+
+import { useActionState } from "react";
+import { useFormStatus } from "react-dom";
+import { submitQuoteRequest, type QuoteFormState } from "@/app/quote/actions";
+import { quoteContent } from "@/lib/content/quote";
+
+const initialState: QuoteFormState = { status: "idle", errors: {}, message: "" };
+
+const FIELD_STYLE =
+  "mt-2 w-full rounded-lg border border-white/10 bg-graphite-800 px-4 py-3 text-steel-100 placeholder:text-steel-200/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-400 focus-visible:outline-offset-2";
+const LABEL_STYLE = "block text-sm font-medium text-steel-100";
+const ERROR_STYLE = "mt-1 text-sm text-red-400";
+
+function SubmitButton() {
+  const { pending } = useFormStatus();
+  return (
+    <button
+      type="submit"
+      disabled={pending}
+      className="inline-block rounded-full bg-accent-500 px-6 py-3 text-sm font-medium text-white transition-all hover:brightness-90 disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-400 focus-visible:outline-offset-2"
+    >
+      {pending ? "Submitting…" : "Submit Quote Request"}
+    </button>
+  );
+}
+
+export function QuoteForm() {
+  const [state, formAction] = useActionState(submitQuoteRequest, initialState);
+
+  if (state.status === "success") {
+    return (
+      <div className="rounded-2xl border border-white/10 bg-graphite-900 p-8 md:p-12">
+        <h2 className="text-xl font-semibold text-steel-100">Request received.</h2>
+        <p className="mt-2 text-steel-200">{state.message}</p>
+      </div>
+    );
+  }
+
+  if (state.status === "unavailable") {
+    return (
+      <div className="rounded-2xl border border-white/10 bg-graphite-900 p-8 md:p-12">
+        <h2 className="text-xl font-semibold text-steel-100">Almost there.</h2>
+        <p className="mt-2 text-steel-200">{state.message}</p>
+      </div>
+    );
+  }
+
+  return (
+    <form
+      action={formAction}
+      encType="multipart/form-data"
+      className="rounded-2xl border border-white/10 bg-graphite-900 p-8 md:p-12"
+    >
+      <p className="text-sm text-accent-400">{quoteContent.slaStatement}</p>
+
+      <div className="mt-6 grid gap-6 sm:grid-cols-2">
+        <div>
+          <label htmlFor="name" className={LABEL_STYLE}>
+            Name
+          </label>
+          <input id="name" name="name" type="text" required className={FIELD_STYLE} />
+          {state.errors.name && <p className={ERROR_STYLE}>{state.errors.name[0]}</p>}
+        </div>
+        <div>
+          <label htmlFor="email" className={LABEL_STYLE}>
+            Email
+          </label>
+          <input id="email" name="email" type="email" required className={FIELD_STYLE} />
+          {state.errors.email && <p className={ERROR_STYLE}>{state.errors.email[0]}</p>}
+        </div>
+        <div>
+          <label htmlFor="company" className={LABEL_STYLE}>
+            Company
+          </label>
+          <input id="company" name="company" type="text" className={FIELD_STYLE} />
+        </div>
+        <div>
+          <label htmlFor="material" className={LABEL_STYLE}>
+            Material
+          </label>
+          <select id="material" name="material" required defaultValue="" className={FIELD_STYLE}>
+            <option value="" disabled>
+              Select a material
+            </option>
+            {quoteContent.materials.map((material) => (
+              <option key={material} value={material}>
+                {material}
+              </option>
+            ))}
+          </select>
+          {state.errors.material && <p className={ERROR_STYLE}>{state.errors.material[0]}</p>}
+        </div>
+        <div>
+          <label htmlFor="quantity" className={LABEL_STYLE}>
+            Quantity
+          </label>
+          <input
+            id="quantity"
+            name="quantity"
+            type="number"
+            min={1}
+            required
+            className={FIELD_STYLE}
+          />
+          {state.errors.quantity && <p className={ERROR_STYLE}>{state.errors.quantity[0]}</p>}
+        </div>
+        <div>
+          <label htmlFor="timeline" className={LABEL_STYLE}>
+            Timeline
+          </label>
+          <select id="timeline" name="timeline" required defaultValue="" className={FIELD_STYLE}>
+            <option value="" disabled>
+              Select a timeline
+            </option>
+            {quoteContent.timelines.map((timeline) => (
+              <option key={timeline} value={timeline}>
+                {timeline}
+              </option>
+            ))}
+          </select>
+          {state.errors.timeline && <p className={ERROR_STYLE}>{state.errors.timeline[0]}</p>}
+        </div>
+        <div className="sm:col-span-2">
+          <label htmlFor="certRequirement" className={LABEL_STYLE}>
+            Certification requirement
+          </label>
+          <select
+            id="certRequirement"
+            name="certRequirement"
+            required
+            defaultValue=""
+            className={FIELD_STYLE}
+          >
+            <option value="" disabled>
+              Select a certification requirement
+            </option>
+            {quoteContent.certRequirements.map((cert) => (
+              <option key={cert} value={cert}>
+                {cert}
+              </option>
+            ))}
+          </select>
+          {state.errors.certRequirement && (
+            <p className={ERROR_STYLE}>{state.errors.certRequirement[0]}</p>
+          )}
+        </div>
+        <div className="sm:col-span-2">
+          <label htmlFor="notes" className={LABEL_STYLE}>
+            Notes (optional)
+          </label>
+          <textarea id="notes" name="notes" rows={4} className={FIELD_STYLE} />
+        </div>
+        <div className="sm:col-span-2">
+          <label htmlFor="file" className={LABEL_STYLE}>
+            Drawing or model file
+          </label>
+          <input
+            id="file"
+            name="file"
+            type="file"
+            required
+            accept={quoteContent.acceptedFileExtensions.join(",")}
+            className={`${FIELD_STYLE} file:mr-4 file:rounded-full file:border-0 file:bg-accent-500 file:px-4 file:py-2 file:text-sm file:font-medium file:text-white`}
+          />
+          <p className="mt-2 text-sm text-steel-200">
+            Accepted: {quoteContent.acceptedFileLabel}. Max {quoteContent.maxFileSizeLabel}.
+          </p>
+          {state.errors.file && <p className={ERROR_STYLE}>{state.errors.file[0]}</p>}
+        </div>
+      </div>
+
+      {state.status === "error" && state.message && (
+        <p className="mt-6 text-sm text-red-400" role="alert">
+          {state.message}
+        </p>
+      )}
+
+      <div className="mt-8">
+        <SubmitButton />
+      </div>
+    </form>
+  );
+}
+```
+
+- [ ] **Step 2: Verify and commit**
+
+```bash
+./node_modules/.bin/next build
+git add components/quote/quote-form.tsx
+git commit -m "$(cat <<'EOF'
+Add RFQ form component
+
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_014oH9o221g8kZmeMcjpyk3H
+EOF
+)"
+```
+
+### Task 6: Quote page
+
+**Files:**
+- Create: `app/quote/page.tsx`
+
+**Interfaces:**
+- Consumes: `QuoteForm` from `@/components/quote/quote-form` (Task 5); `PageContainer`, `Reveal` (existing).
+- Closes the dead `/quote` link already present in `components/layout/nav.tsx:74` and `components/layout/footer.tsx:14` — no changes needed to either, both already point at this route.
+
+- [ ] **Step 1: Write the page**
+
+Create `app/quote/page.tsx`:
+
+```tsx
+import type { Metadata } from "next";
+import { PageContainer } from "@/components/layout/page-container";
+import { Reveal } from "@/components/motion/reveal";
+import { QuoteForm } from "@/components/quote/quote-form";
+
+export const metadata: Metadata = {
+  title: "Get a Quote — RFQ | BELL Machine Works",
+  description:
+    "Upload your drawing or model and tell us your material, quantity, and timeline. Most quotes go out within hours. Gilroy, CA precision CNC machining.",
+};
+
+export default function QuotePage() {
+  return (
+    <PageContainer className="flex flex-col gap-12">
+      <Reveal>
+        <div>
+          <h1 className="text-3xl font-semibold text-steel-100 md:text-4xl">Get a Quote</h1>
+          <p className="mt-4 max-w-2xl text-steel-200">
+            Upload your drawing or model and tell us your material, quantity, and timeline — no
+            minimum order, from single prototypes to 1,000+ unit runs.
+          </p>
+        </div>
+      </Reveal>
+      <Reveal delay={80}>
+        <QuoteForm />
+      </Reveal>
+    </PageContainer>
+  );
+}
+```
+
+- [ ] **Step 2: Manually verify the form's validated-but-deferred submit path**
+
+Run the dev server, open `/quote`, and submit the form to confirm: client-side required-field validation blocks an empty submit; a submit with an invalid file type or an oversized file surfaces the matching server-side error from Task 4; a fully valid submit shows the pending state, then the "unavailable" honest-notice panel added in Task 5 (not a fake success). Delivery (file storage + email) is deferred per the phase-level ruling — there is no real side effect to confirm yet; this step only confirms validation and the deferred-state UX render correctly.
+
+- [ ] **Step 3: Verify build and commit**
+
+```bash
+./node_modules/.bin/next build
+git add app/quote/page.tsx
+git commit -m "$(cat <<'EOF'
+Add /quote RFQ page, closing the dead nav/footer link
+
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_014oH9o221g8kZmeMcjpyk3H
+EOF
+)"
+```
+
+### Task 7: Expand capability content for detail pages
+
+**Files:**
+- Modify: `lib/content/capabilities.ts`
+
+**Interfaces:**
+- Produces: `ProcessDetail` interface (`name`, `status`, `href`, `slug`, `summary`, `specs: { label: string; value: string }[]`, `applications: string[]`) replacing the plain object shape of `processes`; `MaterialFamily` interface extended with `slug`, `summary`, `applications: string[]` (keeping existing `name`, `examples`, `href`). `capabilityHighlights` is unchanged. Consumed by Task 8 and Task 9's pages, and still by the existing `app/capabilities/page.tsx` table (which only reads `name`/`status`/`href`/`examples` — untouched by the new fields).
+
+- [ ] **Step 1: Expand `processes` and `materialFamilies`**
+
+Replace the full contents of `lib/content/capabilities.ts`. Applications listed below are drawn directly from the materials-per-industry mapping already in `lib/content/industries.ts` and the lead-time/process facts in `Rebuild-Build-Plan.md` §2.4 — no new capability claims introduced:
+
+```ts
+export const capabilityHighlights = [
+  { label: "Tolerance", value: '±0.0002" on critical features' },
+  { label: "Micro-features", value: 'Down to < Ø0.01"' },
+  { label: "Surface finish", value: "To 32 μin Ra on optical-grade contact surfaces" },
+  { label: "Work envelope", value: '8" × 6" × 3" per setup' },
+];
+
+export interface ProcessDetail {
+  name: string;
+  status: string;
+  href: string;
+  slug: string;
+  summary: string;
+  specs: { label: string; value: string }[];
+  applications: string[];
+}
+
+export const processes: ProcessDetail[] = [
+  {
+    name: "5-Axis CNC Milling",
+    status: "In-house, confirmed",
+    href: "/capabilities/5-axis-milling",
+    slug: "5-axis-milling",
+    summary:
+      'Simultaneous 5-axis milling for complex geometries that would otherwise need multiple setups — held to ±0.0002" on critical features in a single work-holding.',
+    specs: [
+      { label: "Tolerance", value: '±0.0002" on critical features' },
+      { label: "Micro-features", value: 'Down to < Ø0.01"' },
+      { label: "Surface finish", value: "To 32 μin Ra on optical-grade contact surfaces" },
+      { label: "Work envelope", value: '8" × 6" × 3" per setup' },
+    ],
+    applications: [
+      "Semiconductor alignment brackets and vacuum-sealing components",
+      "Aerospace collar/clamping assemblies and cryo-compatible propulsion tooling",
+      "Optical-grade alignment fixtures for photonics equipment",
+      "Sub-millimeter medical device and biomedical research tooling",
+    ],
+  },
+];
+
+export interface MaterialFamily {
+  name: string;
+  slug: string;
+  examples: string;
+  href: string;
+  summary: string;
+  applications: string[];
+}
+
+export const materialFamilies: MaterialFamily[] = [
+  {
+    name: "Titanium & Aerospace Alloys",
+    slug: "titanium-aerospace-alloys",
+    examples: "Titanium Grade 5, Inconel 625, Inconel 718",
+    href: "/capabilities/materials/titanium-aerospace-alloys",
+    summary:
+      "Titanium Grade 5 and Inconel 625/718 machined to flight-hardware tolerances, including cryo-compatible tooling for reusable launch vehicle propulsion systems.",
+    applications: [
+      "Collar and clamping assemblies",
+      "DO-160 environmental test fixtures",
+      "Non-marring components",
+      "Cryo-compatible propulsion tooling",
+    ],
+  },
+  {
+    name: "Stainless Steels",
+    slug: "stainless-steels",
+    examples: "Including 303, as used in production tooling and fixtures",
+    href: "/capabilities/materials/stainless-steels",
+    summary:
+      "303 stainless steel machined for production tooling, fixtures, and medical device R&D components that need corrosion resistance without titanium's cost.",
+    applications: [
+      "Production tooling and fixtures",
+      "Semiconductor equipment sealing components",
+      "Medical device trim jigs and disassembly fixtures",
+    ],
+  },
+  {
+    name: "Non-Ferrous",
+    slug: "non-ferrous",
+    examples: "Aluminum 6061-T6, 7075, Copper C110, and other alloys by request",
+    href: "/capabilities/materials/non-ferrous",
+    summary:
+      "6061-T6 and 7075 aluminum plus Copper C110 for lightweight structural parts, thermal management, and semiconductor equipment builds — the highest-volume material family across BELL's semiconductor and robotics work.",
+    applications: [
+      "Semiconductor alignment brackets and thermal management assemblies",
+      "Robotics sensor-mounting and calibration fixtures",
+      "AI data-center liquid-cooling clamps",
+      "Aerospace airframe components (2024 alloy)",
+    ],
+  },
+  {
+    name: "Engineering Plastics",
+    slug: "engineering-plastics",
+    examples: "PEEK, Delrin, PTFE, UHMW PE, and other engineering plastics by request",
+    href: "/capabilities/materials/engineering-plastics",
+    summary:
+      "PEEK, Delrin, PTFE, and UHMW PE for wear-resistant, non-marring, and optical-grade components — machined to the same tolerance standard as BELL's metals.",
+    applications: [
+      "Optical alignment fixtures (PTFE)",
+      "Wear-resistant automation components (UHMW PE)",
+      "Robotics sensor housings (polycarbonate)",
+      "Non-marring production tooling",
+    ],
+  },
+];
+```
+
+- [ ] **Step 2: Verify and commit**
+
+```bash
+./node_modules/.bin/next build
+git add lib/content/capabilities.ts
+git commit -m "$(cat <<'EOF'
+Expand capability content with detail-page fields
+
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_014oH9o221g8kZmeMcjpyk3H
+EOF
+)"
+```
+
+### Task 8: 5-axis milling process page
+
+**Files:**
+- Create: `app/capabilities/5-axis-milling/page.tsx`
+
+**Interfaces:**
+- Consumes: `processes` from `@/lib/content/capabilities` (Task 7); `PageContainer`, `Reveal`, `GlassPanel` (existing).
+
+- [ ] **Step 1: Write the page**
+
+Create `app/capabilities/5-axis-milling/page.tsx`. Mirrors the closing CTA panel pattern already used on `/capabilities`, `/quality`, and `/industries/[slug]` — heading + button only, no repeated SLA sentence, per the site-wide rule established in the fourth design-polish round:
+
+```tsx
+import type { Metadata } from "next";
+import Link from "next/link";
+import { PageContainer } from "@/components/layout/page-container";
+import { Reveal } from "@/components/motion/reveal";
+import { GlassPanel } from "@/components/ui/glass-panel";
+import { processes } from "@/lib/content/capabilities";
+
+const processDetail = processes.find((item) => item.slug === "5-axis-milling")!;
+
+export const metadata: Metadata = {
+  title: `${processDetail.name} | BELL Machine Works`,
+  description: processDetail.summary,
+};
+
+export default function FiveAxisMillingPage() {
+  return (
+    <PageContainer className="flex flex-col gap-12">
+      <Reveal>
+        <div>
+          <p className="text-sm text-accent-400">Capabilities / Process</p>
+          <h1 className="mt-1 text-3xl font-semibold text-steel-100 md:text-4xl">
+            {processDetail.name}
+          </h1>
+          <p className="mt-4 max-w-2xl text-steel-200">{processDetail.summary}</p>
+        </div>
+      </Reveal>
+
+      <Reveal delay={80}>
+        <section className="rounded-2xl border border-white/10 bg-graphite-900 p-8 md:p-12">
+          <h2 className="text-xl font-semibold text-steel-100 md:text-2xl">Specifications</h2>
+          <dl className="mt-6 grid gap-6 sm:grid-cols-2">
+            {processDetail.specs.map((spec) => (
+              <div key={spec.label}>
+                <dt className="text-sm text-steel-200">{spec.label}</dt>
+                <dd className="mt-1 text-lg text-steel-100">{spec.value}</dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+      </Reveal>
+
+      <Reveal delay={160}>
+        <section className="rounded-2xl border border-white/10 bg-graphite-900 p-8 md:p-12">
+          <h2 className="text-xl font-semibold text-steel-100 md:text-2xl">Where this shows up</h2>
+          <ul className="mt-6 flex flex-col gap-3">
+            {processDetail.applications.map((application) => (
+              <li key={application} className="text-steel-200">
+                {application}
+              </li>
+            ))}
+          </ul>
+        </section>
+      </Reveal>
+
+      <Reveal delay={240}>
+        <GlassPanel className="flex flex-col items-start gap-4 p-8 md:flex-row md:items-center md:justify-between md:p-12">
+          <div>
+            <h2 className="text-xl font-semibold text-steel-100">Have a print or model ready?</h2>
+          </div>
+          <Link
+            href="/quote"
+            className="inline-block rounded-full bg-accent-500 px-6 py-3 text-sm font-medium text-white transition-all hover:brightness-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-400 focus-visible:outline-offset-2"
+          >
+            Get a Quote
+          </Link>
+        </GlassPanel>
+      </Reveal>
+    </PageContainer>
+  );
+}
+```
+
+- [ ] **Step 2: Verify and commit**
+
+```bash
+./node_modules/.bin/next build
+git add app/capabilities/5-axis-milling/page.tsx
+git commit -m "$(cat <<'EOF'
+Add 5-axis milling process detail page
+
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_014oH9o221g8kZmeMcjpyk3H
+EOF
+)"
+```
+
+### Task 9: Material family detail pages
+
+**Files:**
+- Create: `app/capabilities/materials/[slug]/page.tsx`
+
+**Interfaces:**
+- Consumes: `materialFamilies` from `@/lib/content/capabilities` (Task 7); `PageContainer`, `Reveal`, `GlassPanel` (existing). Follows the exact `generateStaticParams` / `generateMetadata` / `notFound()` pattern already established in `app/industries/[slug]/page.tsx`.
+
+- [ ] **Step 1: Write the dynamic route**
+
+Create `app/capabilities/materials/[slug]/page.tsx`:
+
+```tsx
+import type { Metadata } from "next";
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { PageContainer } from "@/components/layout/page-container";
+import { Reveal } from "@/components/motion/reveal";
+import { GlassPanel } from "@/components/ui/glass-panel";
+import { materialFamilies } from "@/lib/content/capabilities";
+
+export function generateStaticParams() {
+  return materialFamilies.map((family) => ({ slug: family.slug }));
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const family = materialFamilies.find((f) => f.slug === slug);
+  if (!family) return {};
+  return {
+    title: `${family.name} CNC Machining | BELL Machine Works`,
+    description: family.summary,
+  };
+}
+
+export default async function MaterialFamilyPage({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}) {
+  const { slug } = await params;
+  const family = materialFamilies.find((f) => f.slug === slug);
+  if (!family) notFound();
+
+  return (
+    <PageContainer className="flex flex-col gap-12">
+      <Reveal>
+        <div>
+          <p className="text-sm text-accent-400">Capabilities / Materials</p>
+          <h1 className="mt-1 text-3xl font-semibold text-steel-100 md:text-4xl">{family.name}</h1>
+          <p className="mt-4 max-w-2xl text-steel-200">{family.summary}</p>
+        </div>
+      </Reveal>
+
+      <Reveal delay={80}>
+        <section className="rounded-2xl border border-white/10 bg-graphite-900 p-8 md:p-12">
+          <h2 className="text-xl font-semibold text-steel-100 md:text-2xl">Examples</h2>
+          <p className="mt-4 text-steel-200">{family.examples}</p>
+        </section>
+      </Reveal>
+
+      <Reveal delay={160}>
+        <section className="rounded-2xl border border-white/10 bg-graphite-900 p-8 md:p-12">
+          <h2 className="text-xl font-semibold text-steel-100 md:text-2xl">Where this shows up</h2>
+          <ul className="mt-6 flex flex-col gap-3">
+            {family.applications.map((application) => (
+              <li key={application} className="text-steel-200">
+                {application}
+              </li>
+            ))}
+          </ul>
+        </section>
+      </Reveal>
+
+      <Reveal delay={240}>
+        <GlassPanel className="flex flex-col items-start gap-4 p-8 md:flex-row md:items-center md:justify-between md:p-12">
+          <div>
+            <h2 className="text-xl font-semibold text-steel-100">Have a print or model ready?</h2>
+          </div>
+          <Link
+            href="/quote"
+            className="inline-block rounded-full bg-accent-500 px-6 py-3 text-sm font-medium text-white transition-all hover:brightness-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-400 focus-visible:outline-offset-2"
+          >
+            Get a Quote
+          </Link>
+        </GlassPanel>
+      </Reveal>
+    </PageContainer>
+  );
+}
+```
+
+- [ ] **Step 2: Verify all four material routes render, then commit**
+
+```bash
+./node_modules/.bin/next build
+```
+
+Expected: build output lists all four static params (`titanium-aerospace-alloys`, `stainless-steels`, `non-ferrous`, `engineering-plastics`) under `/capabilities/materials/[slug]`.
+
+```bash
+git add app/capabilities/materials/\[slug\]/page.tsx
+git commit -m "$(cat <<'EOF'
+Add material family detail pages
+
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_014oH9o221g8kZmeMcjpyk3H
+EOF
+)"
+```
 
 ## Phase 6 — About/Team + Quality & Certifications + Contact (plan in detail at phase start)
 
