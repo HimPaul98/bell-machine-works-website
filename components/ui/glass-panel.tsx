@@ -8,6 +8,10 @@ interface GlassPanelProps {
   /** Set false for non-interactive glass surfaces (nav, hero) so they
    *  don't jog on hover — Phase 1 final review Minor finding #4. */
   hoverLift?: boolean;
+  /** Brighter border + deeper ambient shadow for standalone showcase
+   *  surfaces (e.g. the Work-page case-study cards) that need to visibly
+   *  lift off the page rather than just outline it. */
+  elevated?: boolean;
   [key: string]: unknown;
 }
 
@@ -21,25 +25,29 @@ export function GlassPanel({
   className = "",
   as: Component = "div",
   hoverLift = true,
+  elevated = false,
   ...rest
 }: GlassPanelProps) {
   return (
     <Component
-      className={`relative rounded-2xl border border-white/10 bg-white/[0.06] backdrop-blur-xl transition-all duration-300 ease-out hover:border-white/20 ${
-        hoverLift ? "hover:-translate-y-1" : ""
-      } ${className}`}
+      className={`relative rounded-2xl border bg-white/[0.06] backdrop-blur-xl transition-all duration-300 ease-out ${
+        elevated
+          ? "border-white/15 hover:border-white/30"
+          : "border-white/10 hover:border-white/20"
+      } ${hoverLift ? "hover:-translate-y-1" : ""} ${className}`}
       {...rest}
       style={{
         ...(rest.style as CSSProperties | undefined),
-        boxShadow: "var(--glass-shadow)",
+        boxShadow: elevated ? "var(--glass-shadow-elevated)" : "var(--glass-shadow)",
       }}
     >
       <span
         aria-hidden
         className="pointer-events-none absolute inset-x-0 top-0 h-px rounded-t-2xl"
         style={{
-          background:
-            "linear-gradient(90deg, transparent, var(--glass-border-top), transparent)",
+          background: `linear-gradient(90deg, transparent, ${
+            elevated ? "var(--glass-border-top-elevated)" : "var(--glass-border-top)"
+          }, transparent)`,
         }}
       />
       {children}

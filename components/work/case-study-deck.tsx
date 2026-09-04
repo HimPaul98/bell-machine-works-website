@@ -28,10 +28,13 @@ export function CaseStudyDeck({ caseStudies }: { caseStudies: CaseStudySummary[]
             className="block rounded-2xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-400 focus-visible:outline-offset-2"
           >
             <GlassPanel
+              elevated
               hoverLift={false}
-              className="grid overflow-hidden md:min-h-[60vh] md:grid-cols-2"
+              className="grid gap-3 p-3 md:min-h-[60vh] md:grid-cols-2 md:gap-4 md:p-4"
             >
-              <div className={`relative h-64 md:h-full ${flipped ? "md:order-last" : ""}`}>
+              <div
+                className={`relative h-64 overflow-hidden rounded-xl md:h-full ${flipped ? "md:order-last" : ""}`}
+              >
                 <Image
                   src={caseStudy.image}
                   alt=""
@@ -40,7 +43,7 @@ export function CaseStudyDeck({ caseStudies }: { caseStudies: CaseStudySummary[]
                   className="object-cover"
                 />
               </div>
-              <div className="flex flex-col justify-center p-10 md:p-16">
+              <div className="flex flex-col justify-center p-6 md:p-10">
                 <p className="text-sm text-accent-400">{caseStudy.sector}</p>
                 <h2 className="mt-2 text-3xl font-semibold text-steel-100 md:text-4xl">
                   {caseStudy.client}
