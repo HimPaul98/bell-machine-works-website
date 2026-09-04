@@ -12,8 +12,7 @@ export function DfmQuoteCtaSection() {
           </h2>
           <p className="mt-2 max-w-xl text-steel-200">
             Every quote request includes a free design-for-manufacturability
-            review from an engineer — not just a number. Most quotes go out
-            within hours.
+            review from an engineer — not just a number.
           </p>
         </div>
         <Link

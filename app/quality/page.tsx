@@ -42,7 +42,6 @@ export default function QualityPage() {
             <h2 className="text-xl font-semibold text-steel-100">
               Have a print or model ready?
             </h2>
-            <p className="mt-2 text-steel-200">Most quotes go out within hours.</p>
           </div>
           <Link
             href="/quote"

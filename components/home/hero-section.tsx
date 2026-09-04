@@ -33,12 +33,18 @@ export function HeroSection() {
           <p className="mt-4 max-w-2xl text-steel-200 drop-shadow-[0_1px_8px_rgba(0,0,0,0.6)]">
             {heroContent.subhead}
           </p>
-          <Link
-            href={heroContent.ctaHref}
-            className="mt-8 inline-block rounded-full bg-accent-500 px-6 py-3 text-sm font-medium text-white transition-all hover:brightness-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-400 focus-visible:outline-offset-2"
-          >
-            {heroContent.ctaLabel}
-          </Link>
+          <div className="mt-8 flex flex-wrap items-center gap-4">
+            <Link
+              href={heroContent.ctaHref}
+              className="inline-block rounded-full bg-accent-500 px-6 py-3 text-sm font-medium text-white transition-all hover:brightness-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-400 focus-visible:outline-offset-2"
+            >
+              {heroContent.ctaLabel}
+            </Link>
+            <span className="inline-flex items-center gap-2 text-sm text-steel-200 drop-shadow-[0_1px_8px_rgba(0,0,0,0.6)]">
+              <span aria-hidden className="size-1.5 rounded-full bg-accent-400" />
+              {heroContent.sla}
+            </span>
+          </div>
         </div>
       </div>
     </div>

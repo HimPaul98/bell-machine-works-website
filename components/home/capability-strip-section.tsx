@@ -1,5 +1,6 @@
 import { Reveal } from "@/components/motion/reveal";
 import { capabilityHighlights } from "@/lib/content/capabilities";
+import { capabilityStripIntro } from "@/lib/content/home";
 
 export function CapabilityStripSection() {
   return (
@@ -8,7 +9,8 @@ export function CapabilityStripSection() {
         <h2 className="text-xl font-semibold text-steel-100 md:text-2xl">
           Machining capability
         </h2>
-        <dl className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        <p className="mt-3 max-w-2xl text-steel-200">{capabilityStripIntro}</p>
+        <dl className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {capabilityHighlights.map((item) => (
             <div key={item.label}>
               <dt className="text-sm text-steel-200">{item.label}</dt>
