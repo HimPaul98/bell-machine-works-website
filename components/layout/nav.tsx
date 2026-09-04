@@ -40,6 +40,11 @@ export function Nav() {
           aria-label="Primary"
           hoverLift={false}
           className="flex flex-col px-6 py-4"
+          style={
+            scrolled
+              ? { backgroundColor: "rgba(10, 11, 13, 0.92)", backdropFilter: "blur(24px)" }
+              : undefined
+          }
         >
           <div className="flex items-center justify-between">
             <Link href="/" className={`rounded-sm ${FOCUS_RING}`} aria-label="BELL Machine Works — home">
