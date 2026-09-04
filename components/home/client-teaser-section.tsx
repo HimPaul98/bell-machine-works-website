@@ -1,21 +1,24 @@
-import { GlassPanel } from "@/components/ui/glass-panel";
+import Link from "next/link";
+import { CaseStudyCard } from "@/components/work/case-study-card";
 import { caseStudies } from "@/lib/content/case-studies";
 
 export function ClientTeaserSection() {
   return (
     <section>
-      <h2 className="text-xl font-semibold text-steel-100 md:text-2xl">
-        Trusted by engineering teams at
-      </h2>
+      <div className="flex items-center justify-between gap-4">
+        <h2 className="text-xl font-semibold text-steel-100 md:text-2xl">
+          Trusted by engineering teams at
+        </h2>
+        <Link
+          href="/work"
+          className="shrink-0 text-sm font-medium text-accent-400 underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-400 focus-visible:outline-offset-2"
+        >
+          See all work →
+        </Link>
+      </div>
       <div className="mt-6 grid gap-6 md:grid-cols-2">
         {caseStudies.map((study) => (
-          <GlassPanel key={study.slug} className="p-6">
-            <p className="text-sm text-accent-400">{study.sector}</p>
-            <h3 className="mt-1 text-lg font-semibold text-steel-100">
-              {study.client}
-            </h3>
-            <p className="mt-2 text-sm text-steel-200">{study.summary}</p>
-          </GlassPanel>
+          <CaseStudyCard key={study.slug} caseStudy={study} />
         ))}
       </div>
     </section>

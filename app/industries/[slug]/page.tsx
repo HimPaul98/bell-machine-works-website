@@ -65,7 +65,10 @@ export default async function IndustryDetailPage({
       {caseStudy && (
         <section>
           <h2 className="text-xl font-semibold text-steel-100 md:text-2xl">Featured work</h2>
-          <Link href={`/work/${caseStudy.slug}`} className="mt-6 block">
+          <Link
+            href={`/work/${caseStudy.slug}`}
+            className="mt-6 block rounded-2xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-400 focus-visible:outline-offset-2"
+          >
             <GlassPanel className="p-6">
               <p className="text-sm text-accent-400">{caseStudy.sector}</p>
               <h3 className="mt-1 text-lg font-semibold text-steel-100">{caseStudy.client}</h3>

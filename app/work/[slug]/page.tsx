@@ -62,7 +62,7 @@ export default async function CaseStudyDetailPage({
           Part of BELL&apos;s{" "}
           <Link
             href={`/industries/${industry.slug}`}
-            className="text-steel-100 underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-400 focus-visible:outline-offset-2"
+            className="text-steel-100 underline underline-offset-4 hover:no-underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-400 focus-visible:outline-offset-2"
           >
             {industry.name}
           </Link>{" "}

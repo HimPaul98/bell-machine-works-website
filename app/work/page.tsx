@@ -23,9 +23,9 @@ export default function WorkPage() {
       <div className="relative h-64 overflow-hidden rounded-2xl md:h-80">
         <Image
           src="/images/stock/precision-metal-parts-tray.jpg"
-          alt="Precision CNC machining detail"
+          alt=""
           fill
-          sizes="100vw"
+          sizes="(min-width: 1152px) 1120px, 100vw"
           className="object-cover"
         />
       </div>
