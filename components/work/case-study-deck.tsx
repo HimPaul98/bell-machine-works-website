@@ -32,7 +32,7 @@ export function CaseStudyDeck({ caseStudies }: { caseStudies: CaseStudySummary[]
             <dl className="mt-8 grid gap-4 sm:grid-cols-3">
               {caseStudy.specHighlights.map((spec) => (
                 <div key={spec.label}>
-                  <dt className="text-xs uppercase tracking-wide text-steel-400">
+                  <dt className="text-xs uppercase tracking-wide text-steel-200">
                     {spec.label}
                   </dt>
                   <dd className="mt-1 text-steel-100">{spec.value}</dd>

@@ -18,8 +18,8 @@ interface RevealProps {
  *  prefers-reduced-motion. */
 export function Reveal({ children, className = "", delay = 0 }: RevealProps) {
   const ref = useRef<HTMLDivElement>(null);
-  const [isIn, setIsIn] = useState(false);
   const reducedMotion = usePrefersReducedMotion();
+  const [isIn, setIsIn] = useState(reducedMotion);
 
   useEffect(() => {
     if (reducedMotion) {
@@ -49,7 +49,7 @@ export function Reveal({ children, className = "", delay = 0 }: RevealProps) {
   return (
     <div
       ref={ref}
-      className={`transition-all duration-1000 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+      className={`transition-all duration-1000 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none motion-reduce:opacity-100 motion-reduce:translate-y-0 ${
         isIn ? "translate-y-0 opacity-100" : "translate-y-[18px] opacity-0"
       } ${className}`}
     >

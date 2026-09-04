@@ -27,24 +27,25 @@ export function TabStage<T>({
   className = "",
 }: TabStageProps<T>) {
   const [active, setActive] = useState(0);
+  const [paused, setPaused] = useState(false);
   const reducedMotion = usePrefersReducedMotion();
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     if (timerRef.current) clearInterval(timerRef.current);
-    if (reducedMotion) return;
+    if (reducedMotion || paused) return;
     timerRef.current = setInterval(() => {
       setActive((prev) => (prev + 1) % items.length);
     }, autoAdvanceMs);
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [reducedMotion, items.length, autoAdvanceMs]);
+  }, [reducedMotion, paused, items.length, autoAdvanceMs]);
 
   function selectTab(index: number) {
     setActive(index);
     if (timerRef.current) clearInterval(timerRef.current);
-    if (!reducedMotion) {
+    if (!reducedMotion && !paused) {
       timerRef.current = setInterval(() => {
         setActive((prev) => (prev + 1) % items.length);
       }, autoAdvanceMs);
@@ -52,7 +53,13 @@ export function TabStage<T>({
   }
 
   return (
-    <div className={className}>
+    <div
+      className={className}
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+      onFocus={() => setPaused(true)}
+      onBlur={() => setPaused(false)}
+    >
       <div
         role="tablist"
         className="grid gap-1 rounded-full border border-white/10 bg-graphite-900 p-1.5"
@@ -81,6 +88,7 @@ export function TabStage<T>({
             key={getKey(item)}
             role="tabpanel"
             aria-hidden={index !== active}
+            inert={index !== active ? true : undefined}
             className={`p-8 transition-all duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] md:p-12 ${
               index === active
                 ? "relative opacity-100"

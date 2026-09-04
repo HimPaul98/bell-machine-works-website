@@ -23,7 +23,9 @@ const ScrollEngineContext = createContext<ScrollEngineValue | null>(null);
  *  in this phase must check this and render its final, static state
  *  instead of animating when it's true. */
 export function usePrefersReducedMotion(): boolean {
-  const [reduced, setReduced] = useState(false);
+  const [reduced, setReduced] = useState(
+    () => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+  );
 
   useEffect(() => {
     const query = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -67,7 +69,7 @@ export function ScrollEngineProvider({ children }: { children: ReactNode }) {
     }
 
     import("lenis").then(({ default: Lenis }) => {
-      if (cancelled) return;
+      if (cancelled || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
       const lenis = new Lenis({ lerp: 0.09, wheelMultiplier: 1, smoothWheel: true });
       lenisInstance = lenis;
 
