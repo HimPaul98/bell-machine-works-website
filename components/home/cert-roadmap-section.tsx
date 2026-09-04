@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Reveal } from "@/components/motion/reveal";
-import { EyeLevelParagraph } from "@/components/motion/eye-level-paragraph";
+import { CertRoadmapTabStage } from "@/components/home/cert-roadmap-tab-stage";
 import { certRoadmapContent } from "@/lib/content/home";
 
 export function CertRoadmapSection() {
@@ -11,15 +11,8 @@ export function CertRoadmapSection() {
           {certRoadmapContent.heading}
         </h2>
         <p className="mt-3 max-w-2xl text-steel-200">{certRoadmapContent.status}</p>
-        <div className="mt-10 flex flex-col gap-6">
-          {certRoadmapContent.proofPoints.map((point) => (
-            <EyeLevelParagraph
-              key={point}
-              className="max-w-2xl text-xl font-medium text-steel-100 md:text-2xl"
-            >
-              {point}
-            </EyeLevelParagraph>
-          ))}
+        <div className="mt-10">
+          <CertRoadmapTabStage proofPoints={certRoadmapContent.proofPoints} />
         </div>
         <Link
           href={certRoadmapContent.ctaHref}
