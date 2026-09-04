@@ -8,8 +8,15 @@ export const heroContent = {
   ctaHref: "/quote",
 };
 
-export const identityStatement =
-  "Specialized in premium, high-mix, low-volume production, we deliver the precision and complete traceability packages required for high-stakes hardware.";
+// Split so the two phrases highlighted on the production site (bellmachineworks.com)
+// can be rendered with matching bold + accent-color emphasis here.
+export const identityStatement = {
+  before: "Specialized in ",
+  highlight1: "premium, high-mix, low-volume production",
+  middle: ", we deliver the precision and ",
+  highlight2: "complete traceability",
+  after: " packages required for high-stakes hardware.",
+};
 
 export const capabilityStripIntro =
   "Precision CNC built around engineering judgment — from micro-scale features to complex five-axis geometries. Bay Area–based.";
