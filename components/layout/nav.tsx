@@ -54,7 +54,7 @@ export function Nav() {
                 width={720}
                 height={240}
                 priority
-                className="h-8 w-auto md:h-9"
+                className="h-11 w-auto md:h-14"
               />
             </Link>
             <ul className="hidden items-center gap-6 md:flex">
