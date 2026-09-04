@@ -8,5 +8,8 @@ export const heroContent = {
   ctaHref: "/quote",
 };
 
+export const identityStatement =
+  "Specialized in premium, high-mix, low-volume production, we deliver the precision and complete traceability packages required for high-stakes hardware.";
+
 export const capabilityStripIntro =
   "Precision CNC built around engineering judgment — from micro-scale features to complex five-axis geometries. Bay Area–based.";
