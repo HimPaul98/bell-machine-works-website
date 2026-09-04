@@ -6,7 +6,6 @@ import Link from "next/link";
 import { GlassPanel } from "@/components/ui/glass-panel";
 import { StickyStack } from "@/components/motion/sticky-stack";
 import type { CaseStudySummary } from "@/lib/content/case-studies";
-import { industries } from "@/lib/content/industries";
 
 /** Client wrapper around StickyStack for the Work hub's case-study deck.
  *  StickyStack's `getKey`/`renderItem` props are functions, and a Server
@@ -21,7 +20,6 @@ export function CaseStudyDeck({ caseStudies }: { caseStudies: CaseStudySummary[]
       items={caseStudies}
       getKey={(caseStudy) => caseStudy.slug}
       renderItem={(caseStudy, index) => {
-        const image = industries.find((i) => i.slug === caseStudy.industrySlug)?.image;
         const flipped = index % 2 === 1;
 
         return (
@@ -33,17 +31,15 @@ export function CaseStudyDeck({ caseStudies }: { caseStudies: CaseStudySummary[]
               hoverLift={false}
               className="grid overflow-hidden md:min-h-[60vh] md:grid-cols-2"
             >
-              {image && (
-                <div className={`relative h-64 md:h-full ${flipped ? "md:order-last" : ""}`}>
-                  <Image
-                    src={image}
-                    alt=""
-                    fill
-                    sizes="(min-width: 1152px) 560px, 100vw"
-                    className="object-cover"
-                  />
-                </div>
-              )}
+              <div className={`relative h-64 md:h-full ${flipped ? "md:order-last" : ""}`}>
+                <Image
+                  src={caseStudy.image}
+                  alt=""
+                  fill
+                  sizes="(min-width: 1152px) 560px, 100vw"
+                  className="object-cover"
+                />
+              </div>
               <div className="flex flex-col justify-center p-10 md:p-16">
                 <p className="text-sm text-accent-400">{caseStudy.sector}</p>
                 <h2 className="mt-2 text-3xl font-semibold text-steel-100 md:text-4xl">

@@ -9,6 +9,7 @@ export interface CaseStudySummary {
   narrative: string;
   specHighlights: { label: string; value: string }[];
   tier: "A" | "B" | "C";
+  image: string;
 }
 
 export const caseStudies: CaseStudySummary[] = [
@@ -28,6 +29,7 @@ export const caseStudies: CaseStudySummary[] = [
       { label: "Material", value: "Aluminum 6061-T6" },
     ],
     tier: "A",
+    image: "/images/stock/precision-machined-aluminum-block.jpg",
   },
   {
     slug: "stoke-space",
@@ -45,6 +47,7 @@ export const caseStudies: CaseStudySummary[] = [
       { label: "Material", value: "Delrin 150 & cryo-compatible PTFE" },
     ],
     tier: "A",
+    image: "/images/stock/cnc-5-axis-mill-head-coolant.jpg",
   },
   {
     slug: "corning",
@@ -62,6 +65,7 @@ export const caseStudies: CaseStudySummary[] = [
       { label: "Material", value: "Aluminum 6061-T6" },
     ],
     tier: "A",
+    image: "/images/stock/precision-drill-tip-macro.jpg",
   },
   {
     slug: "ucsf",
@@ -79,6 +83,7 @@ export const caseStudies: CaseStudySummary[] = [
       { label: "Material", value: "Polycarbonate" },
     ],
     tier: "A",
+    image: "/images/stock/cnc-lathe-shaft-closeup.jpg",
   },
   {
     slug: "amazon-robotics",
@@ -96,6 +101,7 @@ export const caseStudies: CaseStudySummary[] = [
       { label: "Material", value: "Polycarbonate" },
     ],
     tier: "A",
+    image: "/images/stock/milling-cutters-metal-shavings.jpg",
   },
   {
     slug: "nvent",
@@ -113,5 +119,6 @@ export const caseStudies: CaseStudySummary[] = [
       { label: "Material", value: "Delrin 150" },
     ],
     tier: "A",
+    image: "/images/stock/lathe-turning-metal-macro.jpg",
   },
 ];
