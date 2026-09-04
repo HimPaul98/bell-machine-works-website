@@ -5,6 +5,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { GlassPanel } from "@/components/ui/glass-panel";
 import { Container } from "@/components/layout/container";
+import { useScrollFrame } from "@/lib/motion/scroll-engine";
 
 const LINKS = [
   { href: "/capabilities", label: "Capabilities" },
@@ -20,9 +21,18 @@ const FOCUS_RING =
 
 export function Nav() {
   const [open, setOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+
+  useScrollFrame((y) => {
+    setScrolled((prev) => (prev !== y > 40 ? y > 40 : prev));
+  });
 
   return (
-    <header className="sticky top-4 z-50">
+    <header
+      className={`sticky top-4 z-50 transition-[filter] duration-300 ${
+        scrolled ? "drop-shadow-[0_12px_30px_rgba(0,0,0,0.5)]" : ""
+      }`}
+    >
       <Container>
         <GlassPanel
           as="nav"

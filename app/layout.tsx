@@ -4,6 +4,7 @@ import { Nav } from "@/components/layout/nav";
 import { Footer } from "@/components/layout/footer";
 import { BackgroundDepth } from "@/components/ui/background-depth";
 import { ScrollEngineProvider } from "@/lib/motion/scroll-engine";
+import { ScrollProgress } from "@/components/layout/scroll-progress";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -29,6 +30,7 @@ export default function RootLayout({
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
       <body className="flex min-h-screen flex-col bg-graphite-950 antialiased">
         <ScrollEngineProvider>
+          <ScrollProgress />
           <BackgroundDepth />
           <a
             href="#main-content"
