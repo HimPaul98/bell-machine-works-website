@@ -62,7 +62,7 @@ export function Nav() {
                 <li key={link.href}>
                   <Link
                     href={link.href}
-                    className={`rounded-sm text-sm text-steel-200 transition-colors hover:text-steel-100 ${FOCUS_RING}`}
+                    className={`rounded-sm text-base text-steel-200 transition-colors hover:text-steel-100 ${FOCUS_RING}`}
                   >
                     {link.label}
                   </Link>
@@ -72,7 +72,7 @@ export function Nav() {
             <div className="flex items-center gap-3">
               <Link
                 href="/quote"
-                className={`rounded-full bg-accent-500 px-4 py-2 text-sm font-medium text-white transition-all hover:brightness-90 ${FOCUS_RING}`}
+                className={`rounded-full bg-accent-500 px-5 py-2.5 text-base font-medium text-white transition-all hover:brightness-90 ${FOCUS_RING}`}
               >
                 Get a Quote
               </Link>
@@ -111,7 +111,7 @@ export function Nav() {
                 <Link
                   href={link.href}
                   onClick={() => setOpen(false)}
-                  className={`block rounded-sm text-sm text-steel-200 hover:text-steel-100 ${FOCUS_RING}`}
+                  className={`block rounded-sm text-base text-steel-200 hover:text-steel-100 ${FOCUS_RING}`}
                 >
                   {link.label}
                 </Link>
