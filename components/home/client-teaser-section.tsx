@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Reveal } from "@/components/motion/reveal";
-import { CaseStudyCard } from "@/components/work/case-study-card";
+import { ClientMarquee } from "@/components/home/client-marquee";
 import { caseStudies } from "@/lib/content/case-studies";
 
 export function ClientTeaserSection() {
@@ -18,10 +18,8 @@ export function ClientTeaserSection() {
             See all work →
           </Link>
         </div>
-        <div className="mt-6 grid gap-6 md:grid-cols-2">
-          {caseStudies.map((study) => (
-            <CaseStudyCard key={study.slug} caseStudy={study} />
-          ))}
+        <div className="mt-8">
+          <ClientMarquee names={caseStudies.map((study) => study.client)} />
         </div>
       </section>
     </Reveal>
