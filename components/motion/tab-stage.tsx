@@ -62,7 +62,7 @@ export function TabStage<T>({
     >
       <div
         role="tablist"
-        className="grid gap-1 rounded-full border border-white/10 bg-graphite-900 p-1.5"
+        className="flex gap-1 overflow-x-auto rounded-full border border-white/10 bg-graphite-900 p-1.5 sm:grid"
         style={{ gridTemplateColumns: `repeat(${items.length}, 1fr)` }}
       >
         {items.map((item, index) => (
@@ -72,7 +72,7 @@ export function TabStage<T>({
             role="tab"
             aria-selected={index === active}
             onClick={() => selectTab(index)}
-            className={`h-11 rounded-full text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-400 focus-visible:outline-offset-2 ${
+            className={`h-11 shrink-0 whitespace-nowrap rounded-full px-4 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-400 focus-visible:outline-offset-2 sm:px-0 ${
               index === active
                 ? "bg-graphite-700 text-steel-100"
                 : "text-steel-200 hover:text-steel-100"
@@ -89,7 +89,7 @@ export function TabStage<T>({
             role="tabpanel"
             aria-hidden={index !== active}
             inert={index !== active ? true : undefined}
-            className={`p-8 transition-all duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] md:p-12 ${
+            className={`p-8 transition-all duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none md:p-12 ${
               index === active
                 ? "relative opacity-100"
                 : "absolute inset-0 -z-10 translate-y-3 scale-[0.98] opacity-0"

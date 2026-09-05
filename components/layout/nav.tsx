@@ -72,7 +72,7 @@ export function Nav() {
             <div className="flex items-center gap-3">
               <Link
                 href="/quote"
-                className={`rounded-full bg-accent-500 px-5 py-2.5 text-base font-medium text-white transition-all hover:brightness-90 ${FOCUS_RING}`}
+                className={`hidden rounded-full bg-accent-500 px-5 py-2.5 text-base font-medium text-white transition-all hover:brightness-90 sm:inline-block ${FOCUS_RING}`}
               >
                 Get a Quote
               </Link>
@@ -117,6 +117,15 @@ export function Nav() {
                 </Link>
               </li>
             ))}
+            <li className="sm:hidden">
+              <Link
+                href="/quote"
+                onClick={() => setOpen(false)}
+                className={`inline-block rounded-full bg-accent-500 px-5 py-2.5 text-base font-medium text-white transition-all hover:brightness-90 ${FOCUS_RING}`}
+              >
+                Get a Quote
+              </Link>
+            </li>
           </ul>
         </GlassPanel>
       </Container>
