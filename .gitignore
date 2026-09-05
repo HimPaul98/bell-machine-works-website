@@ -1,6 +1,10 @@
 # Superpowers
 .superpowers/
 
+# Generic Claude Code skill library, kept locally for tooling reference only —
+# not a website project asset. Large (~100MB), unrelated to the site itself.
+.agents/skills/
+
 # Reference-only external skill repo, kept for manual lookup only — not an
 # active project asset. Large (~98MB); never committed into this repo's history.
 .agents/reference-repos/
