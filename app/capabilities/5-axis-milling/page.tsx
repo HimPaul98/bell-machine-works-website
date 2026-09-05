@@ -3,6 +3,8 @@ import Link from "next/link";
 import { PageContainer } from "@/components/layout/page-container";
 import { Reveal } from "@/components/motion/reveal";
 import { GlassPanel } from "@/components/ui/glass-panel";
+import { JsonLd } from "@/components/seo/json-ld";
+import { serviceSchema } from "@/lib/seo/schema";
 import { processes } from "@/lib/content/capabilities";
 
 const processDetail = processes.find((item) => item.slug === "5-axis-milling")!;
@@ -15,6 +17,13 @@ export const metadata: Metadata = {
 export default function FiveAxisMillingPage() {
   return (
     <PageContainer className="flex flex-col gap-12">
+      <JsonLd
+        data={serviceSchema({
+          name: processDetail.name,
+          description: processDetail.summary,
+          url: "https://bellmachineworks.com/capabilities/5-axis-milling",
+        })}
+      />
       <Reveal>
         <div>
           <p className="text-sm text-accent-400">Capabilities / Process</p>

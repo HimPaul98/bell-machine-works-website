@@ -5,6 +5,8 @@ import { Footer } from "@/components/layout/footer";
 import { BackgroundDepth } from "@/components/ui/background-depth";
 import { ScrollEngineProvider } from "@/lib/motion/scroll-engine";
 import { ScrollProgress } from "@/components/layout/scroll-progress";
+import { JsonLd } from "@/components/seo/json-ld";
+import { organizationSchema } from "@/lib/seo/schema";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -18,6 +20,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://bellmachineworks.com"),
   title: "BELL Machine Works — Engineering-Led CNC Machining",
   description:
     "Precision CNC machining to ±0.0002\" for semiconductor, aerospace, robotics, and medical device teams. Gilroy, CA. Quotes within hours.",
@@ -29,6 +32,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
       <body className="flex min-h-screen flex-col bg-graphite-950 antialiased">
+        <JsonLd data={organizationSchema} />
         <ScrollEngineProvider>
           <ScrollProgress />
           <BackgroundDepth />

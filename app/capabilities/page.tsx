@@ -4,16 +4,20 @@ import Link from "next/link";
 import { PageContainer } from "@/components/layout/page-container";
 import { Reveal } from "@/components/motion/reveal";
 import { GlassPanel } from "@/components/ui/glass-panel";
+import { JsonLd } from "@/components/seo/json-ld";
+import { serviceSchema } from "@/lib/seo/schema";
 import {
   capabilityHighlights,
   materialFamilies,
   processes,
 } from "@/lib/content/capabilities";
 
+const description =
+  "Tolerances, surface finishes, in-house processes, and material families BELL Machine Works machines for semiconductor, aerospace, and medical device teams. Gilroy, CA.";
+
 export const metadata: Metadata = {
   title: "Capabilities — 5-Axis CNC Machining to ±0.0002\" | BELL Machine Works",
-  description:
-    "Tolerances, surface finishes, in-house processes, and material families BELL Machine Works machines for semiconductor, aerospace, and medical device teams. Gilroy, CA.",
+  description,
 };
 
 const LINK_STYLE =
@@ -22,6 +26,13 @@ const LINK_STYLE =
 export default function CapabilitiesPage() {
   return (
     <PageContainer className="flex flex-col gap-12">
+      <JsonLd
+        data={serviceSchema({
+          name: "Precision CNC Machining",
+          description,
+          url: "https://bellmachineworks.com/capabilities",
+        })}
+      />
       <Reveal>
         <div>
           <h1 className="text-3xl font-semibold text-steel-100 md:text-4xl">

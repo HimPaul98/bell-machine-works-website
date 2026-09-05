@@ -4,6 +4,8 @@ import { notFound } from "next/navigation";
 import { PageContainer } from "@/components/layout/page-container";
 import { Reveal } from "@/components/motion/reveal";
 import { GlassPanel } from "@/components/ui/glass-panel";
+import { JsonLd } from "@/components/seo/json-ld";
+import { serviceSchema } from "@/lib/seo/schema";
 import { materialFamilies } from "@/lib/content/capabilities";
 
 export function generateStaticParams() {
@@ -35,6 +37,13 @@ export default async function MaterialFamilyPage({
 
   return (
     <PageContainer className="flex flex-col gap-12">
+      <JsonLd
+        data={serviceSchema({
+          name: `${family.name} CNC Machining`,
+          description: family.summary,
+          url: `https://bellmachineworks.com/capabilities/materials/${family.slug}`,
+        })}
+      />
       <Reveal>
         <div>
           <p className="text-sm text-accent-400">Capabilities / Materials</p>

@@ -3,6 +3,8 @@ import Link from "next/link";
 import { PageContainer } from "@/components/layout/page-container";
 import { Reveal } from "@/components/motion/reveal";
 import { GlassPanel } from "@/components/ui/glass-panel";
+import { JsonLd } from "@/components/seo/json-ld";
+import { personSchema } from "@/lib/seo/schema";
 import { aboutContent } from "@/lib/content/about";
 
 export const metadata: Metadata = {
@@ -17,6 +19,17 @@ const FOCUS_RING =
 export default function AboutPage() {
   return (
     <PageContainer className="flex flex-col gap-16">
+      {aboutContent.team.map((member) => (
+        <JsonLd
+          key={member.name}
+          data={personSchema({
+            name: member.name,
+            jobTitle: member.title,
+            description: member.bio,
+            url: "https://bellmachineworks.com/about",
+          })}
+        />
+      ))}
       <Reveal>
         <div>
           <h1 className="text-3xl font-semibold text-steel-100 md:text-4xl">About</h1>
